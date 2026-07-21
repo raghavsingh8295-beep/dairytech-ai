@@ -124,6 +124,29 @@ reflects the latest known reading without a farmer having to update it in
 two places. Backdating an old, non-latest record never overwrites a newer
 snapshot.
 
+## Milk Quality (Module 5)
+
+`MilkQualityTest` is a separate entity from `DailyRecord`, not extra
+columns on it: quality tests are per milking *session* (morning, evening,
+or a composite sample) and aren't necessarily logged on the same cadence
+as daily volume, so its identity is `(cow, date, session)` rather than
+just `(cow, date)`. It reuses `RECORD_DAILY_DATA` rather than introducing
+a new permission — the same people who log milk volume log its quality;
+a finer split can be introduced later if that stops being true.
+
+`quality_grade` is a stored, farmer-editable field (a lab slip might
+assign it directly), but `MilkQualityController.suggest_grade` offers a
+heuristic suggestion from fat%/SNF%/bacteria count that the UI's "Suggest"
+button can fill in. The thresholds are explicitly documented as a
+starting point, not a regulatory standard — real grading cutoffs vary by
+country and cooperative.
+
+Same upsert as Daily Recording, same risk, same fix: `MilkQualityFormDialog`
+detects a collision with an existing test (on date or session change, and
+again at submit as a safety net) and reloads its full state before
+allowing a save, so a targeted edit can never silently blank out
+previously recorded metrics.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI

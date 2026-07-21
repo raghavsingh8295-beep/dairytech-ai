@@ -13,8 +13,10 @@ from config.settings import settings
 from controllers.auth_controller import AuthenticatedUser
 from controllers.cow_controller import CowController
 from controllers.daily_record_controller import DailyRecordController
+from controllers.milk_quality_controller import MilkQualityController
 from ui.views.cow_form_dialog import CowFormDialog
 from ui.views.daily_record_form_dialog import DailyRecordFormDialog
+from ui.views.milk_quality_form_dialog import MilkQualityFormDialog
 from utils.exceptions import AppError
 from utils.permissions import Permission, has_permission
 
@@ -39,14 +41,17 @@ class CowDetailView(ctk.CTkFrame):
         cow_id: int,
         on_back: Callable[[], None],
         on_open_daily_records: Callable[[int, str], None],
+        on_open_milk_quality: Callable[[int, str], None],
     ) -> None:
         super().__init__(master, fg_color="transparent")
         self._controller = CowController()
         self._daily_controller = DailyRecordController()
+        self._milk_quality_controller = MilkQualityController()
         self._current_user = current_user
         self._cow_id = cow_id
         self._on_back = on_back
         self._on_open_daily_records = on_open_daily_records
+        self._on_open_milk_quality = on_open_milk_quality
         self._can_manage = has_permission(current_user.role, Permission.MANAGE_COWS)
         self._can_record = has_permission(current_user.role, Permission.RECORD_DAILY_DATA)
 
@@ -123,6 +128,7 @@ class CowDetailView(ctk.CTkFrame):
 
         self._render_facts_grid(cow)
         self._render_daily_records_section(cow)
+        self._render_milk_quality_section(cow)
         self._render_qr_section(cow)
 
         if cow.notes:
@@ -169,6 +175,34 @@ class CowDetailView(ctk.CTkFrame):
             on_saved=self.refresh,
             record=today_record,
         )
+
+    def _render_milk_quality_section(self, cow) -> None:
+        card = ctk.CTkFrame(self.scroll, corner_radius=10)
+        card.pack(fill="x", pady=(20, 0))
+
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=14)
+        ctk.CTkLabel(row, text="Milk Quality", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+
+        recent = self._milk_quality_controller.list_for_cow(self._current_user, cow.id, limit=1)
+        last_text = f"Last tested: {recent[0].test_date.isoformat()}" if recent else "No tests yet"
+        ctk.CTkLabel(row, text=last_text, text_color=("gray30", "gray70")).pack(side="left", padx=(10, 0))
+
+        if self._can_record:
+            ctk.CTkButton(row, text="Log Test", width=100, command=lambda: self._open_milk_quality_dialog(cow)).pack(
+                side="right", padx=(6, 0)
+            )
+        ctk.CTkButton(
+            row,
+            text="View All",
+            width=90,
+            fg_color="transparent",
+            border_width=1,
+            command=lambda: self._on_open_milk_quality(cow.id, cow.tag_number),
+        ).pack(side="right")
+
+    def _open_milk_quality_dialog(self, cow) -> None:
+        MilkQualityFormDialog(self, current_user=self._current_user, cow_id=cow.id, on_saved=self.refresh)
 
     def _render_facts_grid(self, cow) -> None:
         card = ctk.CTkFrame(self.scroll, corner_radius=10)

@@ -7,6 +7,7 @@ table before `init_database()` runs. Populated as each feature module
 from models.cow import Cow, CowGender, HealthStatus, HornType, PregnancyStatus
 from models.daily_record import DailyRecord
 from models.farm import Farm, FarmEmployee
+from models.milk_quality import MilkQualityTest, MilkSession, QualityGrade
 from models.user import User, UserRole
 
 __all__ = [
@@ -20,4 +21,7 @@ __all__ = [
     "PregnancyStatus",
     "HealthStatus",
     "DailyRecord",
+    "MilkQualityTest",
+    "MilkSession",
+    "QualityGrade",
 ]

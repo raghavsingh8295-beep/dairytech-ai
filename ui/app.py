@@ -23,6 +23,7 @@ from ui.views.farm_list_view import FarmListView
 from ui.views.forgot_password_view import ForgotPasswordView
 from ui.views.home_view import HomeView
 from ui.views.login_view import LoginView
+from ui.views.milk_quality_list_view import MilkQualityListView
 from ui.views.setup_admin_view import SetupAdminView
 from ui.views.user_management_view import UserManagementView
 from utils.logger import get_logger
@@ -207,12 +208,24 @@ class DairyTechApp(ctk.CTk):
             cow_id=cow_id,
             on_back=lambda: self._show_cow_list(farm_id, farm_name),
             on_open_daily_records=lambda cid, tag: self._show_daily_records(cid, tag, farm_id, farm_name),
+            on_open_milk_quality=lambda cid, tag: self._show_milk_quality(cid, tag, farm_id, farm_name),
         ).pack(fill="both", expand=True)
 
     def _show_daily_records(self, cow_id: int, cow_tag: str, farm_id: int, farm_name: str) -> None:
         assert self.current_user is not None
         self._clear_content()
         DailyRecordListView(
+            self.content,
+            current_user=self.current_user,
+            cow_id=cow_id,
+            cow_tag=cow_tag,
+            on_back=lambda: self._show_cow_detail(cow_id, farm_id, farm_name),
+        ).pack(fill="both", expand=True)
+
+    def _show_milk_quality(self, cow_id: int, cow_tag: str, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        MilkQualityListView(
             self.content,
             current_user=self.current_user,
             cow_id=cow_id,
