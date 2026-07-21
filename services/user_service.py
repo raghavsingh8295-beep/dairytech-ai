@@ -1,15 +1,21 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import func, select
 
-from models.user import User
+from models.user import User, UserRole
 from services.base_service import BaseService
 
 
 class UserService(BaseService[User]):
     model = User
+
+    def list_by_role(self, role: UserRole, *, only_active: bool = True) -> List[User]:
+        stmt = select(User).where(User.role == role)
+        if only_active:
+            stmt = stmt.where(User.is_active.is_(True))
+        return list(self.session.execute(stmt).scalars().all())
 
     def get_by_username(self, username: str) -> Optional[User]:
         stmt = select(User).where(func.lower(User.username) == username.strip().lower())

@@ -61,7 +61,7 @@ class LoginView(ctk.CTkFrame):
             body,
             text="Forgot password?",
             fg_color="transparent",
-            hover_color=body.cget("fg_color"),
+            hover_color=("gray90", "gray20"),
             text_color=("#2563eb", "#60a5fa"),
             command=self._on_forgot_password,
         )

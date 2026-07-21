@@ -50,6 +50,30 @@ default — `SoftDeleteMixin` adds an `is_active` flag, and `BaseService.delete(
 flips it instead of removing the row. This preserves history for reports
 and AI trend analysis. A model opts out simply by not using the mixin.
 
+## Farm ownership & visibility
+
+A farm's owner is a real `User` account (role `FARM_OWNER`), not a free-text
+"owner name" field — this is a deliberate upgrade over the original spec so
+the name can never drift out of sync with the account, and so visibility can
+be enforced in code. `FarmController` scopes every query by the acting
+user's role: Admin sees all farms, a Farm Owner sees only farms they own,
+an Employee sees only farms they're assigned to (via the `farm_employees`
+join table). This scoping is the foundation every later module (Cows,
+Health, Finance, ...) will reuse for its own farm-level data isolation —
+important both for today's multi-role desktop app and for the eventual
+multi-tenant SaaS version.
+
+`FarmEmployee` is a many-to-many join table rather than a `farm_id` column
+on `User`, for two reasons: it avoids a circular foreign key between
+`users` and `farms` (SQLite handles a third table referencing both far more
+reliably than two tables referencing each other), and it lets an employee
+be assigned to more than one farm without a schema change later.
+
+"Number of Employees" and "Number of Cows" are intentionally *not* stored
+columns — they're computed on read (`FarmService.count_employees`, and a
+cow count once Module 3 exists). A stored count can silently drift from
+reality; a computed one can't.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI

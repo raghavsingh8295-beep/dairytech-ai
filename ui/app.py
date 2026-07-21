@@ -15,6 +15,8 @@ import customtkinter as ctk
 
 from config.settings import settings
 from controllers.auth_controller import AuthController, AuthenticatedUser
+from ui.views.farm_detail_view import FarmDetailView
+from ui.views.farm_list_view import FarmListView
 from ui.views.forgot_password_view import ForgotPasswordView
 from ui.views.home_view import HomeView
 from ui.views.login_view import LoginView
@@ -117,6 +119,9 @@ class DairyTechApp(ctk.CTk):
         ctk.CTkButton(sidebar, text="Home", anchor="w", command=self._show_home).pack(
             padx=16, pady=4, fill="x"
         )
+        ctk.CTkButton(sidebar, text="Farms", anchor="w", command=self._show_farms).pack(
+            padx=16, pady=4, fill="x"
+        )
 
         if has_permission(self.current_user.role, Permission.MANAGE_USERS):
             ctk.CTkButton(sidebar, text="Users", anchor="w", command=self._show_user_management).pack(
@@ -159,6 +164,20 @@ class DairyTechApp(ctk.CTk):
         assert self.current_user is not None
         self._clear_content()
         UserManagementView(self.content, current_user=self.current_user).pack(fill="both", expand=True)
+
+    def _show_farms(self) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        FarmListView(
+            self.content, current_user=self.current_user, on_open_farm=self._show_farm_detail
+        ).pack(fill="both", expand=True)
+
+    def _show_farm_detail(self, farm_id: int) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        FarmDetailView(
+            self.content, current_user=self.current_user, farm_id=farm_id, on_back=self._show_farms
+        ).pack(fill="both", expand=True)
 
     def _logout(self) -> None:
         logger.info("Session ended for %s", self.current_user.username if self.current_user else "unknown")

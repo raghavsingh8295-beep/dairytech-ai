@@ -13,3 +13,11 @@ def validate_email(email: str) -> bool:
 
 def validate_username(username: str) -> bool:
     return bool(_USERNAME_RE.match(username.strip()))
+
+
+def validate_latitude(value: float) -> bool:
+    return -90.0 <= value <= 90.0
+
+
+def validate_longitude(value: float) -> bool:
+    return -180.0 <= value <= 180.0
