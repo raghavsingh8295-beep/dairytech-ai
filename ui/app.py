@@ -17,6 +17,7 @@ from config.settings import settings
 from controllers.auth_controller import AuthController, AuthenticatedUser
 from ui.views.cow_detail_view import CowDetailView
 from ui.views.cow_list_view import CowListView
+from ui.views.daily_record_list_view import DailyRecordListView
 from ui.views.farm_detail_view import FarmDetailView
 from ui.views.farm_list_view import FarmListView
 from ui.views.forgot_password_view import ForgotPasswordView
@@ -205,6 +206,18 @@ class DairyTechApp(ctk.CTk):
             current_user=self.current_user,
             cow_id=cow_id,
             on_back=lambda: self._show_cow_list(farm_id, farm_name),
+            on_open_daily_records=lambda cid, tag: self._show_daily_records(cid, tag, farm_id, farm_name),
+        ).pack(fill="both", expand=True)
+
+    def _show_daily_records(self, cow_id: int, cow_tag: str, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        DailyRecordListView(
+            self.content,
+            current_user=self.current_user,
+            cow_id=cow_id,
+            cow_tag=cow_tag,
+            on_back=lambda: self._show_cow_detail(cow_id, farm_id, farm_name),
         ).pack(fill="both", expand=True)
 
     def _logout(self) -> None:

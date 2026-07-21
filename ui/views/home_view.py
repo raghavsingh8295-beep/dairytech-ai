@@ -45,7 +45,7 @@ class HomeView(ctk.CTkFrame):
         self._status_row(card, "Database", status_text, status_color)
         self._status_row(card, "Database URL", settings.DATABASE_URL, ("gray30", "gray70"))
         self._status_row(
-            card, "Next module", "Daily Recording", ("gray30", "gray70")
+            card, "Next module", "Milk Quality", ("gray30", "gray70")
         )
 
         ctk.CTkFrame(card, height=1, fg_color=("gray80", "gray25")).pack(

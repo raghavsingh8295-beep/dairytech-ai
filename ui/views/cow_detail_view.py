@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shutil
+from datetime import date
 from tkinter import filedialog
 from typing import Callable
 
@@ -11,7 +12,9 @@ from PIL import Image
 from config.settings import settings
 from controllers.auth_controller import AuthenticatedUser
 from controllers.cow_controller import CowController
+from controllers.daily_record_controller import DailyRecordController
 from ui.views.cow_form_dialog import CowFormDialog
+from ui.views.daily_record_form_dialog import DailyRecordFormDialog
 from utils.exceptions import AppError
 from utils.permissions import Permission, has_permission
 
@@ -35,13 +38,17 @@ class CowDetailView(ctk.CTkFrame):
         current_user: AuthenticatedUser,
         cow_id: int,
         on_back: Callable[[], None],
+        on_open_daily_records: Callable[[int, str], None],
     ) -> None:
         super().__init__(master, fg_color="transparent")
         self._controller = CowController()
+        self._daily_controller = DailyRecordController()
         self._current_user = current_user
         self._cow_id = cow_id
         self._on_back = on_back
+        self._on_open_daily_records = on_open_daily_records
         self._can_manage = has_permission(current_user.role, Permission.MANAGE_COWS)
+        self._can_record = has_permission(current_user.role, Permission.RECORD_DAILY_DATA)
 
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=40, pady=24)
@@ -115,6 +122,7 @@ class CowDetailView(ctk.CTkFrame):
             ).pack()
 
         self._render_facts_grid(cow)
+        self._render_daily_records_section(cow)
         self._render_qr_section(cow)
 
         if cow.notes:
@@ -126,6 +134,41 @@ class CowDetailView(ctk.CTkFrame):
             ctk.CTkLabel(notes_card, text=cow.notes, anchor="w", justify="left", wraplength=600).pack(
                 anchor="w", padx=16, pady=(0, 12)
             )
+
+    def _render_daily_records_section(self, cow) -> None:
+        card = ctk.CTkFrame(self.scroll, corner_radius=10)
+        card.pack(fill="x", pady=(20, 0))
+
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=14)
+        ctk.CTkLabel(row, text="Daily Records", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+
+        recent = self._daily_controller.list_for_cow(self._current_user, cow.id, limit=1)
+        last_text = f"Last logged: {recent[0].record_date.isoformat()}" if recent else "No records yet"
+        ctk.CTkLabel(row, text=last_text, text_color=("gray30", "gray70")).pack(side="left", padx=(10, 0))
+
+        if self._can_record:
+            ctk.CTkButton(row, text="Log Today", width=100, command=lambda: self._log_today(cow)).pack(
+                side="right", padx=(6, 0)
+            )
+        ctk.CTkButton(
+            row,
+            text="View All",
+            width=90,
+            fg_color="transparent",
+            border_width=1,
+            command=lambda: self._on_open_daily_records(cow.id, cow.tag_number),
+        ).pack(side="right")
+
+    def _log_today(self, cow) -> None:
+        today_record = self._daily_controller.get_for_date(self._current_user, cow.id, date.today())
+        DailyRecordFormDialog(
+            self,
+            current_user=self._current_user,
+            cow_id=cow.id,
+            on_saved=self.refresh,
+            record=today_record,
+        )
 
     def _render_facts_grid(self, cow) -> None:
         card = ctk.CTkFrame(self.scroll, corner_radius=10)

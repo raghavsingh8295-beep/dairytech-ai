@@ -101,6 +101,29 @@ Likewise `Cow.weight_kg` is the profile's reference weight, not a time
 series — the Daily Recording module owns weight-over-time for graphs/AI
 trend analysis.
 
+## Daily Recording (Module 4)
+
+One `DailyRecord` per (cow, date) — enforced by a unique constraint, not
+just application logic. `DailyRecordController.save_record` upserts:
+there's no separate create/edit call, because a farmer reopening today's
+entry to add the evening milk reading after already logging the morning
+one is the normal flow, not an edge case. `total_milk_liters` is computed
+from morning+evening on read, same reasoning as every other computed field
+in this codebase.
+
+This module is the first consumer of the `RECORD_DAILY_DATA` permission
+defined all the way back in Module 1 — an Employee can log data for a farm
+they're assigned to but cannot touch the Cow master record (that still
+needs `MANAGE_COWS`, which Employees don't have).
+
+Closing a loop noted in Module 3: when a saved record includes a weight or
+pregnancy-status observation *and it's the most recent record for that
+cow* (`DailyRecordController._sync_cow_snapshot`), it's written back onto
+`Cow.weight_kg` / `Cow.pregnancy_status` so the profile card always
+reflects the latest known reading without a farmer having to update it in
+two places. Backdating an old, non-latest record never overwrites a newer
+snapshot.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI

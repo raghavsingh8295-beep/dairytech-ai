@@ -5,6 +5,7 @@ table before `init_database()` runs. Populated as each feature module
 (Authentication, Farm, Cow, ...) is built.
 """
 from models.cow import Cow, CowGender, HealthStatus, HornType, PregnancyStatus
+from models.daily_record import DailyRecord
 from models.farm import Farm, FarmEmployee
 from models.user import User, UserRole
 
@@ -18,4 +19,5 @@ __all__ = [
     "HornType",
     "PregnancyStatus",
     "HealthStatus",
+    "DailyRecord",
 ]

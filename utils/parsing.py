@@ -22,6 +22,16 @@ def parse_optional_float(raw: str, field_label: str) -> Optional[float]:
         raise AppError(f"{field_label} must be a number.") from exc
 
 
+def parse_optional_int(raw: str, field_label: str) -> Optional[int]:
+    raw = raw.strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise AppError(f"{field_label} must be a whole number.") from exc
+
+
 def parse_optional_date(raw: str, field_label: str) -> Optional[date]:
     raw = raw.strip()
     if not raw:
