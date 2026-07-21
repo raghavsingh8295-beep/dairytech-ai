@@ -31,6 +31,13 @@ This boundary is what makes two things possible later without a rewrite:
 commits on success, rolls back and logs on exception, always closes. No
 other module should call `SessionLocal()` directly.
 
+Rollback logging distinguishes expected from unexpected failures:
+exceptions deriving from `utils.exceptions.AppError` (e.g. `AuthenticationError`
+— wrong password, duplicate username, permission denied) are logged at
+WARNING with no stack trace, since they're normal user-facing outcomes, not
+bugs. Anything else is logged at ERROR with a full traceback. Every future
+controller-layer exception should subclass `AppError` to get this for free.
+
 SQLite foreign key enforcement is off by default at the driver level — a
 connection-level `PRAGMA foreign_keys=ON` is installed via an SQLAlchemy
 event listener so relationship integrity is actually enforced during

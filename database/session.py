@@ -15,6 +15,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from config.settings import settings
+from utils.exceptions import AppError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -53,9 +54,13 @@ def get_db_session() -> Generator[Session, None, None]:
     try:
         yield session
         session.commit()
+    except AppError as exc:
+        session.rollback()
+        logger.warning("Database session rolled back: %s", exc)
+        raise
     except Exception:
         session.rollback()
-        logger.exception("Database session rolled back due to an error.")
+        logger.exception("Database session rolled back due to an unexpected error.")
         raise
     finally:
         session.close()

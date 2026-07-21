@@ -1,31 +1,31 @@
-"""Temporary landing view for the foundation build.
+"""Landing view shown after login.
 
-Real modules (Dashboard, Farms, Cows, ...) will replace this with the
-sidebar-driven navigation system. For now it just proves the shell,
-database, and logging are wired together correctly.
+Will be replaced by the full Dashboard module (KPI cards, alerts). For now
+it confirms the shell, database, and authenticated session are wired.
 """
 from __future__ import annotations
 
 import customtkinter as ctk
 
 from config.settings import settings
+from controllers.auth_controller import AuthenticatedUser
 from database.init_db import check_connection
 
 
 class HomeView(ctk.CTkFrame):
-    def __init__(self, master: ctk.CTk) -> None:
+    def __init__(self, master: ctk.CTk, *, current_user: AuthenticatedUser) -> None:
         super().__init__(master, fg_color="transparent")
 
         title = ctk.CTkLabel(
             self,
-            text=f"{settings.APP_NAME}",
+            text=f"Welcome, {current_user.full_name}",
             font=ctk.CTkFont(size=28, weight="bold"),
         )
         title.pack(pady=(40, 4), padx=40, anchor="w")
 
         subtitle = ctk.CTkLabel(
             self,
-            text=f"v{settings.APP_VERSION} — Foundation build",
+            text=f"{current_user.role.label} — {settings.APP_NAME} v{settings.APP_VERSION}",
             font=ctk.CTkFont(size=14),
             text_color=("gray30", "gray70"),
         )
@@ -45,7 +45,7 @@ class HomeView(ctk.CTkFrame):
         self._status_row(card, "Database", status_text, status_color)
         self._status_row(card, "Database URL", settings.DATABASE_URL, ("gray30", "gray70"))
         self._status_row(
-            card, "Next module", "Authentication (login, roles, permissions)", ("gray30", "gray70")
+            card, "Next module", "Farm Management", ("gray30", "gray70")
         )
 
         ctk.CTkFrame(card, height=1, fg_color=("gray80", "gray25")).pack(
