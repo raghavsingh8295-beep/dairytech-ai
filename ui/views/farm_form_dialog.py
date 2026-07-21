@@ -13,6 +13,7 @@ from controllers.auth_controller import AuthenticatedUser
 from controllers.farm_controller import FarmController, FarmDetail, UserOption
 from models.user import UserRole
 from utils.exceptions import AppError
+from utils.parsing import parse_optional_float
 
 
 class FarmFormDialog(ctk.CTkToplevel):
@@ -103,20 +104,10 @@ class FarmFormDialog(ctk.CTkToplevel):
             self._selected_photo_path = Path(path)
             self.photo_label.configure(text=self._photo_status_text())
 
-    @staticmethod
-    def _parse_optional_float(raw: str, field_label: str) -> Optional[float]:
-        raw = raw.strip()
-        if not raw:
-            return None
-        try:
-            return float(raw)
-        except ValueError as exc:
-            raise AppError(f"{field_label} must be a number.") from exc
-
     def _submit(self) -> None:
         try:
-            latitude = self._parse_optional_float(self.lat_entry.get(), "GPS latitude")
-            longitude = self._parse_optional_float(self.lng_entry.get(), "GPS longitude")
+            latitude = parse_optional_float(self.lat_entry.get(), "GPS latitude")
+            longitude = parse_optional_float(self.lng_entry.get(), "GPS longitude")
             notes = self.notes_entry.get("1.0", "end").strip()
 
             if self._farm is None:

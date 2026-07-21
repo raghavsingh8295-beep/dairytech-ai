@@ -21,3 +21,7 @@ def validate_latitude(value: float) -> bool:
 
 def validate_longitude(value: float) -> bool:
     return -180.0 <= value <= 180.0
+
+
+def validate_non_negative(value: float) -> bool:
+    return value >= 0

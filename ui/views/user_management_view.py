@@ -5,6 +5,7 @@ import customtkinter as ctk
 
 from controllers.auth_controller import AuthController, AuthenticatedUser, AuthenticationError
 from models.user import UserRole
+from utils.enum_utils import label_lookup
 
 
 class UserManagementView(ctk.CTkFrame):
@@ -96,7 +97,7 @@ class UserManagementView(ctk.CTkFrame):
         error_label.pack(pady=(8, 0))
 
         def submit() -> None:
-            role_label_to_role = {role.label: role for role in UserRole}
+            role_label_to_role = label_lookup(UserRole)
             try:
                 self._auth.register_user(
                     actor_role=self._current_user.role,

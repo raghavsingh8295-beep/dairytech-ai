@@ -15,6 +15,8 @@ import customtkinter as ctk
 
 from config.settings import settings
 from controllers.auth_controller import AuthController, AuthenticatedUser
+from ui.views.cow_detail_view import CowDetailView
+from ui.views.cow_list_view import CowListView
 from ui.views.farm_detail_view import FarmDetailView
 from ui.views.farm_list_view import FarmListView
 from ui.views.forgot_password_view import ForgotPasswordView
@@ -176,7 +178,33 @@ class DairyTechApp(ctk.CTk):
         assert self.current_user is not None
         self._clear_content()
         FarmDetailView(
-            self.content, current_user=self.current_user, farm_id=farm_id, on_back=self._show_farms
+            self.content,
+            current_user=self.current_user,
+            farm_id=farm_id,
+            on_back=self._show_farms,
+            on_open_cows=self._show_cow_list,
+        ).pack(fill="both", expand=True)
+
+    def _show_cow_list(self, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        CowListView(
+            self.content,
+            current_user=self.current_user,
+            farm_id=farm_id,
+            farm_name=farm_name,
+            on_open_cow=lambda cow_id: self._show_cow_detail(cow_id, farm_id, farm_name),
+            on_back=lambda: self._show_farm_detail(farm_id),
+        ).pack(fill="both", expand=True)
+
+    def _show_cow_detail(self, cow_id: int, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        CowDetailView(
+            self.content,
+            current_user=self.current_user,
+            cow_id=cow_id,
+            on_back=lambda: self._show_cow_list(farm_id, farm_name),
         ).pack(fill="both", expand=True)
 
     def _logout(self) -> None:

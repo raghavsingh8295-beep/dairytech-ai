@@ -10,9 +10,11 @@ from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
 from controllers.base_controller import BaseController
+from controllers.farm_access import ensure_can_access_farm, get_farm_or_raise
 from database.session import get_db_session
 from models.farm import Farm
 from models.user import UserRole
+from services.cow_service import CowService
 from services.farm_service import FarmService
 from services.user_service import UserService
 from utils.exceptions import AppError
@@ -44,6 +46,7 @@ class FarmSummary:
     address: Optional[str]
     photo_path: Optional[str]
     employee_count: int
+    cow_count: int
     is_active: bool
 
 
@@ -58,20 +61,22 @@ class FarmController(BaseController):
     def list_farms(self, actor: AuthenticatedUser) -> List[FarmSummary]:
         with get_db_session() as session:
             farm_service = FarmService(session)
+            cow_service = CowService(session)
             if actor.role == UserRole.ADMIN:
                 farms = farm_service.get_all()
             elif actor.role == UserRole.FARM_OWNER:
                 farms = farm_service.list_owned_by(actor.id)
             else:
                 farms = farm_service.list_for_employee(actor.id)
-            return [self._to_summary(farm_service, farm) for farm in farms]
+            return [self._to_summary(farm_service, cow_service, farm) for farm in farms]
 
     def get_farm(self, actor: AuthenticatedUser, farm_id: int) -> FarmDetail:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_view(farm_service, actor, farm)
-            return self._to_detail(farm_service, farm)
+            cow_service = CowService(session)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm)
+            return self._to_detail(farm_service, cow_service, farm)
 
     def create_farm(
         self,
@@ -91,6 +96,7 @@ class FarmController(BaseController):
         with get_db_session() as session:
             user_service = UserService(session)
             farm_service = FarmService(session)
+            cow_service = CowService(session)
 
             resolved_owner_id = self._resolve_owner_id(actor, owner_id, user_service)
             self._validate_farm_fields(name, gps_latitude, gps_longitude)
@@ -110,7 +116,7 @@ class FarmController(BaseController):
                 notes=(notes.strip() or None) if notes else None,
             )
             self.logger.info("Farm created: %s (owner_id=%s)", farm.name, resolved_owner_id)
-            return self._to_detail(farm_service, farm)
+            return self._to_detail(farm_service, cow_service, farm)
 
     def update_farm(
         self,
@@ -128,8 +134,9 @@ class FarmController(BaseController):
     ) -> FarmDetail:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_manage(actor, farm)
+            cow_service = CowService(session)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_FARMS)
             self._validate_farm_fields(name, gps_latitude, gps_longitude)
 
             new_photo_path = farm.photo_path
@@ -151,21 +158,21 @@ class FarmController(BaseController):
                 photo_path=new_photo_path,
             )
             self.logger.info("Farm updated: %s", farm.name)
-            return self._to_detail(farm_service, farm)
+            return self._to_detail(farm_service, cow_service, farm)
 
     def delete_farm(self, actor: AuthenticatedUser, farm_id: int) -> None:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_manage(actor, farm)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_FARMS)
             farm_service.delete(farm_id)
             self.logger.info("Farm deactivated: %s", farm.name)
 
     def assign_employee(self, actor: AuthenticatedUser, *, farm_id: int, user_id: int) -> None:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_manage(actor, farm)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_FARMS)
 
             user = UserService(session).get_by_id(user_id)
             if user is None or user.role != UserRole.EMPLOYEE or not user.is_active:
@@ -178,23 +185,23 @@ class FarmController(BaseController):
     def remove_employee(self, actor: AuthenticatedUser, *, farm_id: int, user_id: int) -> None:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_manage(actor, farm)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_FARMS)
             if not farm_service.remove_employee(farm_id, user_id):
                 raise FarmError("That employee is not assigned to this farm.")
 
     def list_employees(self, actor: AuthenticatedUser, farm_id: int) -> List[UserOption]:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_view(farm_service, actor, farm)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm)
             return [self._to_option(u) for u in farm_service.list_employees(farm_id)]
 
     def list_assignable_employees(self, actor: AuthenticatedUser, farm_id: int) -> List[UserOption]:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            farm = self._require_farm(farm_service, farm_id)
-            self._ensure_can_manage(actor, farm)
+            farm = get_farm_or_raise(farm_service, farm_id)
+            ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_FARMS)
             assigned_ids = {u.id for u in farm_service.list_employees(farm_id)}
             candidates = UserService(session).list_by_role(UserRole.EMPLOYEE)
             return [self._to_option(u) for u in candidates if u.id not in assigned_ids]
@@ -206,24 +213,7 @@ class FarmController(BaseController):
             owners = UserService(session).list_by_role(UserRole.FARM_OWNER)
             return [self._to_option(u) for u in owners]
 
-    # ---- Access control ---------------------------------------------------
-
-    @staticmethod
-    def _ensure_can_view(farm_service: FarmService, actor: AuthenticatedUser, farm: Farm) -> None:
-        if actor.role == UserRole.ADMIN:
-            return
-        if actor.role == UserRole.FARM_OWNER and farm.owner_id == actor.id:
-            return
-        if actor.role == UserRole.EMPLOYEE and farm_service.is_employee_assigned(farm.id, actor.id):
-            return
-        raise FarmError("You do not have access to this farm.")
-
-    @staticmethod
-    def _ensure_can_manage(actor: AuthenticatedUser, farm: Farm) -> None:
-        if not has_permission(actor.role, Permission.MANAGE_FARMS):
-            raise FarmError("You do not have permission to manage farms.")
-        if actor.role == UserRole.FARM_OWNER and farm.owner_id != actor.id:
-            raise FarmError("You can only manage farms you own.")
+    # ---- Validation ---------------------------------------------------------
 
     @staticmethod
     def _resolve_owner_id(
@@ -247,13 +237,6 @@ class FarmController(BaseController):
         if longitude is not None and not validate_longitude(longitude):
             raise FarmError("Longitude must be between -180 and 180.")
 
-    @staticmethod
-    def _require_farm(farm_service: FarmService, farm_id: int) -> Farm:
-        farm = farm_service.get_by_id(farm_id)
-        if farm is None:
-            raise FarmError("Farm not found.")
-        return farm
-
     # ---- Mapping ------------------------------------------------------------
 
     @staticmethod
@@ -261,7 +244,7 @@ class FarmController(BaseController):
         return UserOption(id=user.id, username=user.username, full_name=user.full_name)
 
     @staticmethod
-    def _to_summary(farm_service: FarmService, farm: Farm) -> FarmSummary:
+    def _to_summary(farm_service: FarmService, cow_service: CowService, farm: Farm) -> FarmSummary:
         return FarmSummary(
             id=farm.id,
             name=farm.name,
@@ -271,12 +254,13 @@ class FarmController(BaseController):
             address=farm.address,
             photo_path=farm.photo_path,
             employee_count=farm_service.count_employees(farm.id),
+            cow_count=cow_service.count_for_farm(farm.id),
             is_active=farm.is_active,
         )
 
     @classmethod
-    def _to_detail(cls, farm_service: FarmService, farm: Farm) -> FarmDetail:
-        summary = cls._to_summary(farm_service, farm)
+    def _to_detail(cls, farm_service: FarmService, cow_service: CowService, farm: Farm) -> FarmDetail:
+        summary = cls._to_summary(farm_service, cow_service, farm)
         return FarmDetail(
             **asdict(summary),
             gps_latitude=farm.gps_latitude,

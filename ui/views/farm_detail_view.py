@@ -25,12 +25,14 @@ class FarmDetailView(ctk.CTkFrame):
         current_user: AuthenticatedUser,
         farm_id: int,
         on_back: Callable[[], None],
+        on_open_cows: Callable[[int, str], None],
     ) -> None:
         super().__init__(master, fg_color="transparent")
         self._controller = FarmController()
         self._current_user = current_user
         self._farm_id = farm_id
         self._on_back = on_back
+        self._on_open_cows = on_open_cows
         self._can_manage = has_permission(current_user.role, Permission.MANAGE_FARMS)
 
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -123,7 +125,22 @@ class FarmDetailView(ctk.CTkFrame):
                 anchor="w", padx=16, pady=(0, 12)
             )
 
+        self._render_cows_section(farm)
         self._render_employees_section(farm.id)
+
+    def _render_cows_section(self, farm) -> None:
+        section = ctk.CTkFrame(self.scroll, corner_radius=10)
+        section.pack(fill="x", pady=(24, 0))
+
+        row = ctk.CTkFrame(section, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=14)
+        ctk.CTkLabel(row, text="Cows", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+        ctk.CTkLabel(
+            row, text=f"{farm.cow_count} registered", text_color=("gray30", "gray70")
+        ).pack(side="left", padx=(10, 0))
+        ctk.CTkButton(
+            row, text="Manage Cows", command=lambda: self._on_open_cows(farm.id, farm.name)
+        ).pack(side="right")
 
     def _render_employees_section(self, farm_id: int) -> None:
         section = ctk.CTkFrame(self.scroll, fg_color="transparent")

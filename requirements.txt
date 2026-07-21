@@ -7,12 +7,14 @@ Pillow==11.3.0
 # --- Module 1: Authentication ---
 bcrypt==4.3.0
 
+# --- Module 3: Cow Management ---
+qrcode==8.2
+
 # --- Added in later modules (uncomment as each module is built) ---
 # alembic              # database migrations
 # matplotlib           # data visualization module
 # reportlab            # PDF reports module
 # openpyxl             # Excel reports module
-# qrcode               # cow QR code generation
 # scikit-learn         # AI module (predictions, health scoring)
 # pandas               # AI module / analytics
 

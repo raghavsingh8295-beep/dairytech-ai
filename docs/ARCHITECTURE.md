@@ -70,9 +70,36 @@ reliably than two tables referencing each other), and it lets an employee
 be assigned to more than one farm without a schema change later.
 
 "Number of Employees" and "Number of Cows" are intentionally *not* stored
-columns — they're computed on read (`FarmService.count_employees`, and a
-cow count once Module 3 exists). A stored count can silently drift from
+columns — they're computed on read (`FarmService.count_employees`,
+`CowService.count_for_farm`). A stored count can silently drift from
 reality; a computed one can't.
+
+## Cow Management (Module 3)
+
+A `Cow` belongs to exactly one `Farm` (`farm_id`), so it reuses the exact
+same visibility/permission rule as farms — Admin sees all, a Farm Owner
+sees cows on farms they own, an Employee sees cows on farms they're
+assigned to. Rather than duplicate that logic in `CowController`, it was
+extracted out of `FarmController` into `controllers/farm_access.py`
+(`ensure_can_access_farm`, `get_farm_or_raise`), which both controllers —
+and every future farm-scoped module (Health, Breeding, Inventory, Finance,
+Daily Recording) — now share.
+
+`Cow.tag_number` (the farmer-facing ear-tag ID) is unique per farm, not
+globally — different farms can both have a "#105". `Cow.rfid_number` and
+`Cow.qr_code_value` *are* globally unique, since they identify a physical
+tag/chip. The QR value itself is a random opaque token (`utils/qr_code.py`),
+not the database row ID — printing an internal primary key onto a physical
+tag would leak schema details and break if the ID space is ever
+reorganized (e.g. during a future Postgres migration).
+
+`Cow.health_status` and `Cow.pregnancy_status` are current-state snapshots
+on the profile card, not event logs — the Health and Breeding modules will
+own the detailed history (treatments, vaccinations, heat cycles, AI dates)
+and are expected to keep these snapshot fields in sync when they're built.
+Likewise `Cow.weight_kg` is the profile's reference weight, not a time
+series — the Daily Recording module owns weight-over-time for graphs/AI
+trend analysis.
 
 ## AI Service Layer
 
