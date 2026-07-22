@@ -1,11 +1,12 @@
 """Modal dialog for registering or editing a cow. Shared by the cow list's
-"Add Cow" button and the detail view's "Edit" button.
+"Add Cow" button, the detail view's "Edit" button, and the Breeding
+module's "Register as Cow" calf-birth flow.
 """
 from __future__ import annotations
 
 from pathlib import Path
 from tkinter import filedialog
-from typing import Callable, Optional
+from typing import Callable, Optional, TypedDict
 
 import customtkinter as ctk
 
@@ -19,6 +20,15 @@ from utils.parsing import parse_optional_date, parse_optional_float
 _NOT_SPECIFIED = "Not specified"
 
 
+class CowInitialValues(TypedDict, total=False):
+    """Defaults to pre-fill when creating a cow from a known context (e.g.
+    a calf birth already tells us breed/gender/birth date)."""
+
+    breed: str
+    gender: CowGender
+    birth_date: str
+
+
 class CowFormDialog(ctk.CTkToplevel):
     def __init__(
         self,
@@ -28,14 +38,18 @@ class CowFormDialog(ctk.CTkToplevel):
         farm_id: int,
         on_saved: Callable[[], None],
         cow: Optional[CowDetail] = None,
+        initial_values: Optional[CowInitialValues] = None,
+        on_created: Optional[Callable[[int], None]] = None,
     ) -> None:
         super().__init__(master)
         self._controller = CowController()
         self._current_user = current_user
         self._farm_id = farm_id
         self._on_saved = on_saved
+        self._on_created = on_created
         self._cow = cow
         self._selected_photo_path: Optional[Path] = None
+        defaults: CowInitialValues = {} if cow is not None else (initial_values or {})
 
         self.title("Edit Cow" if cow else "Add Cow")
         self.geometry("440x760")
@@ -48,15 +62,20 @@ class CowFormDialog(ctk.CTkToplevel):
 
         self.tag_entry = self._field(body, "Tag number", initial=cow.tag_number if cow else "")
         self.rfid_entry = self._field(body, "RFID number (optional)", initial=cow.rfid_number if cow else "")
-        self.breed_entry = self._field(body, "Breed", initial=cow.breed if cow else "")
+        self.breed_entry = self._field(
+            body, "Breed", initial=cow.breed if cow else defaults.get("breed", "")
+        )
 
         self.gender_lookup = label_lookup(CowGender)
         self.gender_menu = ctk.CTkOptionMenu(body, values=list(self.gender_lookup))
-        self.gender_menu.set(cow.gender.label if cow else CowGender.FEMALE.label)
+        default_gender = cow.gender if cow else defaults.get("gender", CowGender.FEMALE)
+        self.gender_menu.set(default_gender.label)
         self.gender_menu.pack(pady=5, fill="x")
 
         self.birth_date_entry = self._field(
-            body, "Birth date (YYYY-MM-DD)", initial=cow.birth_date.isoformat() if cow and cow.birth_date else ""
+            body,
+            "Birth date (YYYY-MM-DD)",
+            initial=(cow.birth_date.isoformat() if cow and cow.birth_date else defaults.get("birth_date", "")),
         )
         self.weight_entry = self._field(
             body, "Weight (kg)", initial=str(cow.weight_kg) if cow and cow.weight_kg is not None else ""
@@ -173,8 +192,10 @@ class CowFormDialog(ctk.CTkToplevel):
                 photo_source_path=self._selected_photo_path,
             )
 
+            created_cow_id: Optional[int] = None
             if self._cow is None:
-                self._controller.create_cow(self._current_user, farm_id=self._farm_id, **kwargs)
+                created = self._controller.create_cow(self._current_user, farm_id=self._farm_id, **kwargs)
+                created_cow_id = created.id
             else:
                 self._controller.update_cow(self._current_user, self._cow.id, **kwargs)
         except AppError as exc:
@@ -183,3 +204,5 @@ class CowFormDialog(ctk.CTkToplevel):
 
         self.destroy()
         self._on_saved()
+        if created_cow_id is not None and self._on_created is not None:
+            self._on_created(created_cow_id)

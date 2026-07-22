@@ -15,6 +15,7 @@ import customtkinter as ctk
 
 from config.settings import settings
 from controllers.auth_controller import AuthController, AuthenticatedUser
+from ui.views.breeding_view import BreedingView
 from ui.views.cow_detail_view import CowDetailView
 from ui.views.cow_list_view import CowListView
 from ui.views.daily_record_list_view import DailyRecordListView
@@ -211,6 +212,7 @@ class DairyTechApp(ctk.CTk):
             on_open_daily_records=lambda cid, tag: self._show_daily_records(cid, tag, farm_id, farm_name),
             on_open_milk_quality=lambda cid, tag: self._show_milk_quality(cid, tag, farm_id, farm_name),
             on_open_health=lambda cid, tag: self._show_health(cid, tag, farm_id, farm_name),
+            on_open_breeding=lambda cid, tag: self._show_breeding(cid, tag, farm_id, farm_name),
         ).pack(fill="both", expand=True)
 
     def _show_daily_records(self, cow_id: int, cow_tag: str, farm_id: int, farm_name: str) -> None:
@@ -244,6 +246,19 @@ class DairyTechApp(ctk.CTk):
             cow_id=cow_id,
             cow_tag=cow_tag,
             on_back=lambda: self._show_cow_detail(cow_id, farm_id, farm_name),
+        ).pack(fill="both", expand=True)
+
+    def _show_breeding(self, cow_id: int, cow_tag: str, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        BreedingView(
+            self.content,
+            current_user=self.current_user,
+            cow_id=cow_id,
+            cow_tag=cow_tag,
+            farm_id=farm_id,
+            on_back=lambda: self._show_cow_detail(cow_id, farm_id, farm_name),
+            on_open_cow=lambda calf_cow_id: self._show_cow_detail(calf_cow_id, farm_id, farm_name),
         ).pack(fill="both", expand=True)
 
     def _logout(self) -> None:

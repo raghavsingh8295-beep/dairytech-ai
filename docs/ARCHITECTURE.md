@@ -188,6 +188,41 @@ MilkQuality/the four Health controllers, was finally worth centralizing:
 `get_cow_or_raise` moved into `controllers/farm_access.py` alongside
 `get_farm_or_raise`, and all seven call sites were switched over.
 
+## Breeding (Module 7)
+
+Four more plain-CRUD entities, same reasoning as Health: `HeatCycle`,
+`Insemination`, `PregnancyCheck`, `CalfBirth`. `PregnancyCheck` may
+reference the `Insemination` it confirms (mirroring Treatment/DoctorVisit
+→ Disease from Module 6); `PregnancyCheckFormDialog`'s "Suggest" button
+fills the expected delivery date as insemination date + 283 days (average
+bovine gestation) — the same "computed suggestion, not a stored rule" as
+Milk Quality's grade suggestion in Module 5.
+
+This module finally implements the `Cow.pregnancy_status` /
+`expected_delivery_date` sync promised back in Module 3, via two
+different rules with different confidence levels:
+- `PregnancyCheckController` uses the same "most recent wins" pattern as
+  Module 4's weight sync — a backdated, edited pregnancy test never
+  overrides a newer one's result.
+- `CalfBirthController` treats a recorded birth as unconditional ground
+  truth: the mother's status resets to Open with no expected delivery
+  date regardless of test recency, since a birth having happened isn't
+  something a pregnancy test's timing can contradict.
+
+**"Calf Records" is not a separate schema.** A calf is a `Cow` — reusing
+the exact Cow Management module built in Module 3 rather than
+duplicating tag number, breed, photo, QR code, etc. on a parallel
+"Calf" entity. `CalfBirth.calf_cow_id` is a nullable FK set only once the
+calf is actually registered. The registration flow
+(`BreedingView._register_calf_as_cow`) opens the existing `CowFormDialog`
+pre-filled with breed/gender/birth date already known from the birth
+event, via two small additive hooks on that dialog:
+`initial_values` (pre-fills fields only in create mode, ignored when
+editing) and `on_created` (fires with the new cow's ID, separately from
+the existing `on_saved` refresh callback, so linking the birth record to
+the cow doesn't require changing either of the two pre-existing call
+sites that don't care about the new cow's ID).
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI

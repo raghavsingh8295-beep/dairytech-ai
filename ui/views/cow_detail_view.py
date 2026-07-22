@@ -45,6 +45,7 @@ class CowDetailView(ctk.CTkFrame):
         on_open_daily_records: Callable[[int, str], None],
         on_open_milk_quality: Callable[[int, str], None],
         on_open_health: Callable[[int, str], None],
+        on_open_breeding: Callable[[int, str], None],
     ) -> None:
         super().__init__(master, fg_color="transparent")
         self._controller = CowController()
@@ -57,6 +58,7 @@ class CowDetailView(ctk.CTkFrame):
         self._on_open_daily_records = on_open_daily_records
         self._on_open_milk_quality = on_open_milk_quality
         self._on_open_health = on_open_health
+        self._on_open_breeding = on_open_breeding
         self._can_manage = has_permission(current_user.role, Permission.MANAGE_COWS)
         self._can_record = has_permission(current_user.role, Permission.RECORD_DAILY_DATA)
         self._can_manage_health = has_permission(current_user.role, Permission.MANAGE_HEALTH)
@@ -136,6 +138,7 @@ class CowDetailView(ctk.CTkFrame):
         self._render_daily_records_section(cow)
         self._render_milk_quality_section(cow)
         self._render_health_section(cow)
+        self._render_breeding_section(cow)
         self._render_qr_section(cow)
 
         if cow.notes:
@@ -230,6 +233,24 @@ class CowDetailView(ctk.CTkFrame):
             text="Open Health",
             width=110,
             command=lambda: self._on_open_health(cow.id, cow.tag_number),
+        ).pack(side="right")
+
+    def _render_breeding_section(self, cow) -> None:
+        card = ctk.CTkFrame(self.scroll, corner_radius=10)
+        card.pack(fill="x", pady=(20, 0))
+
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=14)
+        ctk.CTkLabel(row, text="Breeding", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+        ctk.CTkLabel(row, text=f"Pregnancy: {cow.pregnancy_status.label}", text_color=("gray30", "gray70")).pack(
+            side="left", padx=(10, 0)
+        )
+
+        ctk.CTkButton(
+            row,
+            text="Open Breeding",
+            width=120,
+            command=lambda: self._on_open_breeding(cow.id, cow.tag_number),
         ).pack(side="right")
 
     def _render_facts_grid(self, cow) -> None:
