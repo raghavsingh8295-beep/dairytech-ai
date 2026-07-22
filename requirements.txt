@@ -10,6 +10,12 @@ bcrypt==4.3.0
 # --- Module 3: Cow Management ---
 qrcode==8.2
 
+# --- Mobile API backend ---
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+pyjwt==2.13.0
+pydantic==2.13.4
+
 # --- Added in later modules (uncomment as each module is built) ---
 # alembic              # database migrations
 # matplotlib           # data visualization module

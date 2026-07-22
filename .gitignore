@@ -13,7 +13,13 @@ logs/*.log*
 exports/*
 !exports/.gitkeep
 
+# User-uploaded/generated content (farm & cow photos, QR codes) — runtime
+# data, not source, same reasoning as the database being gitignored.
+assets/images/*
+!assets/images/.gitkeep
+
 .env
+.jwt_secret
 
 build/
 dist/
