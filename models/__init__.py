@@ -8,6 +8,7 @@ from models.breeding import CalfBirth, CalfOutcome, HeatCycle, Insemination, Pre
 from models.cow import Cow, CowGender, HealthStatus, HornType, PregnancyStatus
 from models.daily_record import DailyRecord
 from models.farm import Farm, FarmEmployee
+from models.finance import Expense, ExpenseCategory, Income, IncomeCategory
 from models.health import Disease, DiseaseSeverity, DiseaseStatus, DoctorVisit, Treatment, Vaccination
 from models.inventory import InventoryCategory, InventoryItem, MovementType, StockMovement, Supplier
 from models.milk_quality import MilkQualityTest, MilkSession, QualityGrade
@@ -44,4 +45,8 @@ __all__ = [
     "InventoryCategory",
     "StockMovement",
     "MovementType",
+    "Income",
+    "IncomeCategory",
+    "Expense",
+    "ExpenseCategory",
 ]

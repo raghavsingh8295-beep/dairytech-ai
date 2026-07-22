@@ -27,6 +27,7 @@ class FarmDetailView(ctk.CTkFrame):
         on_back: Callable[[], None],
         on_open_cows: Callable[[int, str], None],
         on_open_inventory: Callable[[int, str], None],
+        on_open_finance: Callable[[int, str], None],
     ) -> None:
         super().__init__(master, fg_color="transparent")
         self._controller = FarmController()
@@ -35,7 +36,9 @@ class FarmDetailView(ctk.CTkFrame):
         self._on_back = on_back
         self._on_open_cows = on_open_cows
         self._on_open_inventory = on_open_inventory
+        self._on_open_finance = on_open_finance
         self._can_manage = has_permission(current_user.role, Permission.MANAGE_FARMS)
+        self._can_view_finance = has_permission(current_user.role, Permission.MANAGE_FINANCE)
 
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=40, pady=24)
@@ -129,7 +132,22 @@ class FarmDetailView(ctk.CTkFrame):
 
         self._render_cows_section(farm)
         self._render_inventory_section(farm)
+        if self._can_view_finance:
+            self._render_finance_section(farm)
         self._render_employees_section(farm.id)
+
+    def _render_finance_section(self, farm) -> None:
+        section = ctk.CTkFrame(self.scroll, corner_radius=10)
+        section.pack(fill="x", pady=(24, 0))
+
+        row = ctk.CTkFrame(section, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=14)
+        ctk.CTkLabel(row, text="Finance", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+        ctk.CTkButton(
+            row,
+            text="Manage Finance",
+            command=lambda: self._on_open_finance(farm.id, farm.name),
+        ).pack(side="right")
 
     def _render_inventory_section(self, farm) -> None:
         section = ctk.CTkFrame(self.scroll, corner_radius=10)

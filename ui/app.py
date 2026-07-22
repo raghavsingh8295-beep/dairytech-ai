@@ -21,6 +21,7 @@ from ui.views.cow_list_view import CowListView
 from ui.views.daily_record_list_view import DailyRecordListView
 from ui.views.farm_detail_view import FarmDetailView
 from ui.views.farm_list_view import FarmListView
+from ui.views.finance_view import FinanceView
 from ui.views.forgot_password_view import ForgotPasswordView
 from ui.views.health_view import HealthView
 from ui.views.home_view import HomeView
@@ -190,6 +191,7 @@ class DairyTechApp(ctk.CTk):
             on_back=self._show_farms,
             on_open_cows=self._show_cow_list,
             on_open_inventory=self._show_inventory,
+            on_open_finance=self._show_finance,
         ).pack(fill="both", expand=True)
 
     def _show_cow_list(self, farm_id: int, farm_name: str) -> None:
@@ -285,6 +287,17 @@ class DairyTechApp(ctk.CTk):
             item_id=item_id,
             farm_id=farm_id,
             on_back=lambda: self._show_inventory(farm_id, farm_name),
+        ).pack(fill="both", expand=True)
+
+    def _show_finance(self, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        FinanceView(
+            self.content,
+            current_user=self.current_user,
+            farm_id=farm_id,
+            farm_name=farm_name,
+            on_back=lambda: self._show_farm_detail(farm_id),
         ).pack(fill="both", expand=True)
 
     def _logout(self) -> None:

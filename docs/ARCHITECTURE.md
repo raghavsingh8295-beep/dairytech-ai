@@ -259,6 +259,45 @@ than a data-integrity violation, so it's something the UI can flag —
 suppliers repeatedly and picking one from a list beats retyping a name
 that might not match next time.
 
+## Finance (Module 9)
+
+The spec's "Medicine Cost" and "Feed Cost" line items are **not** manual
+`Expense` entries — those costs already exist as real data from earlier
+modules (`Treatment.cost` / `Vaccination.cost` in Health,
+`StockMovement.unit_cost` purchases in Inventory), so re-entering them
+here would double-count. `ExpenseCategory` deliberately has no Feed or
+Medicine option at all — the temptation to double-enter is designed out
+at the schema level, not just documented. `FinanceSummaryService`
+aggregates them fresh at report time instead, scoped to a farm and date
+range, reading Health's and Inventory's tables directly (it isn't a
+`BaseService[Model]` since it owns no entity of its own — it's a
+reporting query, not a CRUD surface).
+
+Two aggregation choices worth calling out:
+- **Feed cost** comes only from Inventory purchases with a recorded unit
+  cost; a purchase logged without one contributes nothing, because there
+  is no cost to attribute — silently guessing would be worse than
+  omitting it.
+- **Medicine cost** comes from Health's `Treatment.cost` and *given*
+  `Vaccination.cost` (`date_given` set), not from Inventory medicine
+  purchases — stock bought this month might not be used until next
+  month, so administration date is the right one for "when was this
+  expense incurred," not purchase date.
+
+Equipment and breeding costs are deliberately **not** auto-aggregated,
+even though `StockMovement` and `Insemination.cost` track them —
+unlike feed and medicine, the spec doesn't name them as Finance line
+items, and equipment purchases in particular are often one-off capital
+expenses a farmer would rather categorize manually (`ExpenseCategory.EQUIPMENT`)
+than have silently rolled into an automatic figure.
+
+Viewing Income/Expense/the Monthly Summary requires `MANAGE_FINANCE`,
+unlike Health/Breeding/Inventory where any farm-assigned Employee can
+view (just not write). Financial figures are more sensitive than herd or
+stock data, and Employees don't hold this permission — `FarmDetailView`
+hides the entire Finance section for roles that can't open it, rather
+than showing a button that immediately errors.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI
