@@ -6,10 +6,25 @@ scoring, yield forecasting, and plain-language recommendations.
 
 ## Status
 
-**Module 0 — Foundation** is complete: project skeleton, configuration,
-logging, database layer, base service/controller patterns, and the
-CustomTkinter application shell. No feature modules (Authentication, Farms,
-Cows, ...) exist yet — they're built incrementally, one at a time.
+All 10 core modules are complete:
+
+0. Foundation — project skeleton, config, logging, database layer,
+   base service/controller patterns, AI service interface, app shell
+1. Authentication — roles (Admin/Farm Owner/Employee), permissions, login,
+   forgot password
+2. Farm Management — ownership-scoped farms, employee assignment, photos
+3. Cow Management — profiles, QR codes, farm-scoped permissions
+4. Daily Recording — per-cow daily logs, cow-profile snapshot sync
+5. Milk Quality — per-session tests, quality grade suggestion
+6. Health — diseases, vaccinations, treatments, doctor visits, reminders
+7. Breeding — heat cycles, AI, pregnancy tests, calf births (a calf is a Cow)
+8. Inventory — farm-scoped stock ledger, suppliers, purchases
+9. Finance — income, expenses, non-duplicating monthly summary/profit
+10. Dashboard — KPI cards aggregated across every farm a user can see
+
+Still ahead: charts/data visualization, the AI feature set (health scoring,
+yield forecasting, recommendations — the interface already exists in
+`ai/ai_service.py`), PDF/Excel reports, and PyInstaller packaging.
 
 ## Setup
 
@@ -46,9 +61,9 @@ database/     SQLAlchemy engine, session, init
 models/       ORM entities (one module per feature, added incrementally)
 services/     data-access layer (repository pattern) — DB-agnostic
 controllers/  business logic orchestration — no UI, no raw SQL
-ai/           AI service interface + implementations
-charts/       matplotlib chart components (added with the Dashboard module)
-reports/      PDF / Excel report generators
+ai/           AI service interface (implementations arrive with the AI module)
+charts/       matplotlib chart components (not yet built)
+reports/      PDF / Excel report generators (not yet built)
 ui/           CustomTkinter views, components, styles
 utils/        logging, validators, helpers
 tests/        automated tests

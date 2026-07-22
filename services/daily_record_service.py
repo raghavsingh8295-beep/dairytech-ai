@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from sqlalchemy import func, select
 
+from models.cow import Cow
 from models.daily_record import DailyRecord
 from services.base_service import BaseService
 
@@ -43,3 +44,20 @@ class DailyRecordService(BaseService[DailyRecord]):
             DailyRecord.cow_id == cow_id, DailyRecord.is_active.is_(True)
         )
         return self.session.execute(stmt).scalar_one_or_none()
+
+    def sum_milk_for_farms_on_date(self, farm_ids: Sequence[int], record_date: date) -> float:
+        """For the Dashboard's Milk Today card — one query across every
+        farm the actor can see rather than looping per cow."""
+        stmt = (
+            select(
+                func.coalesce(func.sum(DailyRecord.milk_morning_liters), 0.0)
+                + func.coalesce(func.sum(DailyRecord.milk_evening_liters), 0.0)
+            )
+            .join(Cow, DailyRecord.cow_id == Cow.id)
+            .where(
+                Cow.farm_id.in_(farm_ids),
+                DailyRecord.record_date == record_date,
+                DailyRecord.is_active.is_(True),
+            )
+        )
+        return self.session.execute(stmt).scalar_one()

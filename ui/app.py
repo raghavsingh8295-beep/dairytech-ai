@@ -19,12 +19,12 @@ from ui.views.breeding_view import BreedingView
 from ui.views.cow_detail_view import CowDetailView
 from ui.views.cow_list_view import CowListView
 from ui.views.daily_record_list_view import DailyRecordListView
+from ui.views.dashboard_view import DashboardView
 from ui.views.farm_detail_view import FarmDetailView
 from ui.views.farm_list_view import FarmListView
 from ui.views.finance_view import FinanceView
 from ui.views.forgot_password_view import ForgotPasswordView
 from ui.views.health_view import HealthView
-from ui.views.home_view import HomeView
 from ui.views.inventory_item_detail_view import InventoryItemDetailView
 from ui.views.inventory_view import InventoryView
 from ui.views.login_view import LoginView
@@ -99,7 +99,7 @@ class DairyTechApp(ctk.CTk):
 
         self._build_sidebar()
         self._build_content_area()
-        self._show_home()
+        self._show_dashboard()
 
     def _build_sidebar(self) -> None:
         sidebar = ctk.CTkFrame(self.root_frame, width=220, corner_radius=0)
@@ -125,7 +125,7 @@ class DairyTechApp(ctk.CTk):
             text_color=("gray30", "gray70"),
         ).pack(padx=16, pady=(0, 20), anchor="w")
 
-        ctk.CTkButton(sidebar, text="Home", anchor="w", command=self._show_home).pack(
+        ctk.CTkButton(sidebar, text="Dashboard", anchor="w", command=self._show_dashboard).pack(
             padx=16, pady=4, fill="x"
         )
         ctk.CTkButton(sidebar, text="Farms", anchor="w", command=self._show_farms).pack(
@@ -164,10 +164,10 @@ class DairyTechApp(ctk.CTk):
     def _clear_content(self) -> None:
         self._clear(self.content)
 
-    def _show_home(self) -> None:
+    def _show_dashboard(self) -> None:
         assert self.current_user is not None
         self._clear_content()
-        HomeView(self.content, current_user=self.current_user).pack(fill="both", expand=True)
+        DashboardView(self.content, current_user=self.current_user).pack(fill="both", expand=True)
 
     def _show_user_management(self) -> None:
         assert self.current_user is not None

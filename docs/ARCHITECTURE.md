@@ -298,6 +298,39 @@ stock data, and Employees don't hold this permission — `FarmDetailView`
 hides the entire Finance section for roles that can't open it, rather
 than showing a button that immediately errors.
 
+## Dashboard (Module 10)
+
+Replaces the placeholder `HomeView` from Module 0 — that file is gone;
+`DashboardView` is the real post-login landing screen now, and the
+sidebar/method are renamed from Home/`_show_home` to Dashboard/
+`_show_dashboard` throughout.
+
+`DashboardController` reuses `FarmController`'s exact visibility rule
+(Admin: all farms, Farm Owner: owned, Employee: assigned) rather than
+inventing a separate one, then aggregates KPIs across that farm set with
+new single-query methods on the relevant services —
+`CowService.count_by_health_status` / `count_upcoming_births`,
+`DailyRecordService.sum_milk_for_farms_on_date`,
+`VaccinationService.count_due_for_farms` — instead of looping per farm or
+per cow in the controller. Cow and daily-record counts can get large
+enough that an N+1 loop would matter; farm counts can't, so Finance is
+the deliberate exception: it loops `FinanceSummaryController` once per
+visible farm and sums the results rather than duplicating Module 9's
+aggregation SQL for a multi-farm case that will rarely exceed a handful
+of farms.
+
+"Sick Cows" means *not Healthy* — every other `HealthStatus` (Sick, Under
+Treatment, Critical, Quarantined) rolls into one "needs attention" count,
+matching the two cards the spec actually asks for rather than a full
+status breakdown. "Birth Alerts" reuses `Cow.expected_delivery_date`
+directly (synced by Breeding in Module 7) rather than tracking anything
+new, and deliberately has no lower bound — an overdue delivery date
+still counts, since that's exactly when the alert matters most.
+
+Revenue/Expenses/Profit cards are omitted entirely (not shown-then-blocked)
+for roles without `MANAGE_FINANCE`, the same pattern `FarmDetailView`
+established for the Finance section itself.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI
