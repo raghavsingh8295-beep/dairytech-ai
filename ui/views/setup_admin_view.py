@@ -21,6 +21,7 @@ class SetupAdminView(ctk.CTkFrame):
         super().__init__(master, fg_color="transparent")
         self._auth = AuthController()
         self._on_success = on_success
+        self._password_visible = False
 
         card = AuthCard(self, width=420)
         body = card.body
@@ -38,8 +39,7 @@ class SetupAdminView(ctk.CTkFrame):
         self.full_name_entry = self._field(body, "Full name")
         self.username_entry = self._field(body, "Username")
         self.email_entry = self._field(body, "Email")
-        self.password_entry = self._field(body, "Password", show="•")
-        self.confirm_entry = self._field(body, "Confirm password", show="•")
+        self.password_entry, self.confirm_entry = self._password_fields(body)
         self.security_question_entry = self._field(
             body, "Security question (e.g. Your first pet's name?)"
         )
@@ -56,6 +56,35 @@ class SetupAdminView(ctk.CTkFrame):
         entry = ctk.CTkEntry(parent, placeholder_text=placeholder, width=FIELD_WIDTH, show=show)
         entry.pack(pady=5)
         return entry
+
+    def _password_fields(self, parent: ctk.CTkFrame) -> tuple[ctk.CTkEntry, ctk.CTkEntry]:
+        # A fully-masked password field with no way to check what actually
+        # landed in it is a real trap: a wrong caps-lock state or a typo is
+        # invisible until submit fails, and it's easy to retype the same
+        # mistake over and over without realizing. One toggle reveals both
+        # password fields together so the confirm field stays useful too.
+        password_row = ctk.CTkFrame(parent, fg_color="transparent")
+        password_row.pack(pady=5)
+        password_entry = ctk.CTkEntry(
+            password_row, placeholder_text="Password", show="•", width=FIELD_WIDTH - 60
+        )
+        password_entry.pack(side="left")
+        self.toggle_btn = ctk.CTkButton(
+            password_row, text="Show", width=52, command=self._toggle_password
+        )
+        self.toggle_btn.pack(side="left", padx=(6, 0))
+
+        confirm_entry = ctk.CTkEntry(parent, placeholder_text="Confirm password", show="•", width=FIELD_WIDTH)
+        confirm_entry.pack(pady=5)
+
+        return password_entry, confirm_entry
+
+    def _toggle_password(self) -> None:
+        self._password_visible = not self._password_visible
+        show = "" if self._password_visible else "•"
+        self.password_entry.configure(show=show)
+        self.confirm_entry.configure(show=show)
+        self.toggle_btn.configure(text="Hide" if self._password_visible else "Show")
 
     def _submit(self) -> None:
         password = self.password_entry.get()

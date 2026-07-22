@@ -44,11 +44,26 @@ class FarmFormDialog(ctk.CTkToplevel):
         self.name_entry = self._field(body, "Farm name", initial=farm.name if farm else "")
 
         self.owner_menu: Optional[ctk.CTkOptionMenu] = None
+        self._blocked_no_owners = False
         if current_user.role == UserRole.ADMIN and farm is None:
             self._owner_options = self._controller.list_farm_owner_options(current_user)
-            values = [self._owner_label(o) for o in self._owner_options] or ["No Farm Owner accounts yet"]
-            self.owner_menu = ctk.CTkOptionMenu(body, values=values)
-            self.owner_menu.pack(pady=5, fill="x")
+            if self._owner_options:
+                self.owner_menu = ctk.CTkOptionMenu(
+                    body, values=[self._owner_label(o) for o in self._owner_options]
+                )
+                self.owner_menu.pack(pady=5, fill="x")
+            else:
+                self._blocked_no_owners = True
+                ctk.CTkLabel(
+                    body,
+                    text=(
+                        "Every farm needs a Farm Owner account, and none exist yet.\n"
+                        "Go to Users → + Add User, set the role to Farm Owner, then come back here."
+                    ),
+                    text_color=("#b45309", "#fbbf24"),
+                    wraplength=340,
+                    justify="left",
+                ).pack(pady=(5, 5), anchor="w")
 
         self.phone_entry = self._field(body, "Phone number", initial=farm.phone_number if farm else "")
         self.address_entry = self._field(body, "Address", initial=farm.address if farm else "")
@@ -75,7 +90,12 @@ class FarmFormDialog(ctk.CTkToplevel):
         self.error_label = ctk.CTkLabel(body, text="", text_color=("#b91c1c", "#f87171"), wraplength=340)
         self.error_label.pack(pady=(8, 0))
 
-        ctk.CTkButton(body, text="Save Farm", command=self._submit).pack(pady=(14, 0), fill="x")
+        ctk.CTkButton(
+            body,
+            text="Save Farm",
+            command=self._submit,
+            state="disabled" if self._blocked_no_owners else "normal",
+        ).pack(pady=(14, 0), fill="x")
 
     @staticmethod
     def _owner_label(option: UserOption) -> str:
