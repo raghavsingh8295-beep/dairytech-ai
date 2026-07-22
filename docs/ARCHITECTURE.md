@@ -223,6 +223,42 @@ the existing `on_saved` refresh callback, so linking the birth record to
 the cow doesn't require changing either of the two pre-existing call
 sites that don't care about the new cow's ID).
 
+## Inventory (Module 8)
+
+The first module scoped to a **farm**, not a cow — it lives on Farm
+Detail, not Cow Detail, since feed/medicine/equipment stock belongs to
+the farm as a whole.
+
+There is no stored "current stock" column. `InventoryItem` just defines
+what a thing is (name, category, unit, reorder threshold); every change
+to how much of it exists — a purchase, a day's feed usage, a manual
+correction for spoilage or a miscount — is one row in the `StockMovement`
+ledger, and current stock is `sum(quantity_change)` computed on read
+(`StockMovementService.current_stock`). This is the same "computed, not
+stored" reasoning used for total milk, cow/employee counts, and every
+other running total in this app, applied to a domain where it matters
+even more: a stored counter can silently drift from a ledger's truth, but
+a ledger's sum never can.
+
+`StockMovementController` exposes three intention-revealing methods —
+`record_purchase`, `record_usage`, `record_adjustment` — instead of one
+generic call taking a signed quantity. A farmer thinks "I bought 50kg" or
+"I used 50kg", not "quantity_change = ±50"; each method normalizes the
+sign before writing the row (purchases always stored positive, usage
+always negative, adjustments as entered), so the database column itself
+is always unambiguous regardless of which UI action produced it.
+
+Deliberately not validated: a usage or adjustment is allowed to take
+computed stock negative. That's a real, legitimate situation (a farmhand
+logs feed usage before someone else logs the matching purchase) rather
+than a data-integrity violation, so it's something the UI can flag —
+`InventoryItemEntry.is_low_stock` — not something the controller blocks.
+
+"Suppliers" get their own entity rather than a free-text field on
+`StockMovement`, since a farm reorders from the same handful of
+suppliers repeatedly and picking one from a list beats retyping a name
+that might not match next time.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI

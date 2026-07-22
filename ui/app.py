@@ -24,6 +24,8 @@ from ui.views.farm_list_view import FarmListView
 from ui.views.forgot_password_view import ForgotPasswordView
 from ui.views.health_view import HealthView
 from ui.views.home_view import HomeView
+from ui.views.inventory_item_detail_view import InventoryItemDetailView
+from ui.views.inventory_view import InventoryView
 from ui.views.login_view import LoginView
 from ui.views.milk_quality_list_view import MilkQualityListView
 from ui.views.setup_admin_view import SetupAdminView
@@ -187,6 +189,7 @@ class DairyTechApp(ctk.CTk):
             farm_id=farm_id,
             on_back=self._show_farms,
             on_open_cows=self._show_cow_list,
+            on_open_inventory=self._show_inventory,
         ).pack(fill="both", expand=True)
 
     def _show_cow_list(self, farm_id: int, farm_name: str) -> None:
@@ -259,6 +262,29 @@ class DairyTechApp(ctk.CTk):
             farm_id=farm_id,
             on_back=lambda: self._show_cow_detail(cow_id, farm_id, farm_name),
             on_open_cow=lambda calf_cow_id: self._show_cow_detail(calf_cow_id, farm_id, farm_name),
+        ).pack(fill="both", expand=True)
+
+    def _show_inventory(self, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        InventoryView(
+            self.content,
+            current_user=self.current_user,
+            farm_id=farm_id,
+            farm_name=farm_name,
+            on_back=lambda: self._show_farm_detail(farm_id),
+            on_open_item=lambda item_id: self._show_inventory_item(item_id, farm_id, farm_name),
+        ).pack(fill="both", expand=True)
+
+    def _show_inventory_item(self, item_id: int, farm_id: int, farm_name: str) -> None:
+        assert self.current_user is not None
+        self._clear_content()
+        InventoryItemDetailView(
+            self.content,
+            current_user=self.current_user,
+            item_id=item_id,
+            farm_id=farm_id,
+            on_back=lambda: self._show_inventory(farm_id, farm_name),
         ).pack(fill="both", expand=True)
 
     def _logout(self) -> None:
