@@ -11,7 +11,7 @@ from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
 from controllers.base_controller import BaseController
-from controllers.farm_access import ensure_can_access_farm, get_farm_or_raise
+from controllers.farm_access import ensure_can_access_farm, get_cow_or_raise, get_farm_or_raise
 from database.session import get_db_session
 from models.cow import Cow, CowGender, HealthStatus, HornType, PregnancyStatus
 from services.cow_service import CowService
@@ -70,7 +70,7 @@ class CowController(BaseController):
     def get_cow(self, actor: AuthenticatedUser, cow_id: int) -> CowDetail:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            cow = self._require_cow(CowService(session), cow_id)
+            cow = get_cow_or_raise(CowService(session), cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm)
             return self._to_detail(cow)
@@ -169,7 +169,7 @@ class CowController(BaseController):
         with get_db_session() as session:
             farm_service = FarmService(session)
             cow_service = CowService(session)
-            cow = self._require_cow(cow_service, cow_id)
+            cow = get_cow_or_raise(cow_service, cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_COWS)
 
@@ -214,7 +214,7 @@ class CowController(BaseController):
         with get_db_session() as session:
             farm_service = FarmService(session)
             cow_service = CowService(session)
-            cow = self._require_cow(cow_service, cow_id)
+            cow = get_cow_or_raise(cow_service, cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm, required_permission=Permission.MANAGE_COWS)
             cow_service.delete(cow_id)
@@ -240,13 +240,6 @@ class CowController(BaseController):
             raise CowError("Height cannot be negative.")
         if purchase_price is not None and not validate_non_negative(purchase_price):
             raise CowError("Purchase price cannot be negative.")
-
-    @staticmethod
-    def _require_cow(cow_service: CowService, cow_id: int) -> Cow:
-        cow = cow_service.get_by_id(cow_id)
-        if cow is None:
-            raise CowError("Cow not found.")
-        return cow
 
     # ---- Mapping ------------------------------------------------------------
 

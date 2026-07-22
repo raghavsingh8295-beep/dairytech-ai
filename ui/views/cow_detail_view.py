@@ -13,7 +13,9 @@ from config.settings import settings
 from controllers.auth_controller import AuthenticatedUser
 from controllers.cow_controller import CowController
 from controllers.daily_record_controller import DailyRecordController
+from controllers.disease_controller import DiseaseController
 from controllers.milk_quality_controller import MilkQualityController
+from models.health import DiseaseStatus
 from ui.views.cow_form_dialog import CowFormDialog
 from ui.views.daily_record_form_dialog import DailyRecordFormDialog
 from ui.views.milk_quality_form_dialog import MilkQualityFormDialog
@@ -42,18 +44,22 @@ class CowDetailView(ctk.CTkFrame):
         on_back: Callable[[], None],
         on_open_daily_records: Callable[[int, str], None],
         on_open_milk_quality: Callable[[int, str], None],
+        on_open_health: Callable[[int, str], None],
     ) -> None:
         super().__init__(master, fg_color="transparent")
         self._controller = CowController()
         self._daily_controller = DailyRecordController()
         self._milk_quality_controller = MilkQualityController()
+        self._disease_controller = DiseaseController()
         self._current_user = current_user
         self._cow_id = cow_id
         self._on_back = on_back
         self._on_open_daily_records = on_open_daily_records
         self._on_open_milk_quality = on_open_milk_quality
+        self._on_open_health = on_open_health
         self._can_manage = has_permission(current_user.role, Permission.MANAGE_COWS)
         self._can_record = has_permission(current_user.role, Permission.RECORD_DAILY_DATA)
+        self._can_manage_health = has_permission(current_user.role, Permission.MANAGE_HEALTH)
 
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True, padx=40, pady=24)
@@ -129,6 +135,7 @@ class CowDetailView(ctk.CTkFrame):
         self._render_facts_grid(cow)
         self._render_daily_records_section(cow)
         self._render_milk_quality_section(cow)
+        self._render_health_section(cow)
         self._render_qr_section(cow)
 
         if cow.notes:
@@ -203,6 +210,27 @@ class CowDetailView(ctk.CTkFrame):
 
     def _open_milk_quality_dialog(self, cow) -> None:
         MilkQualityFormDialog(self, current_user=self._current_user, cow_id=cow.id, on_saved=self.refresh)
+
+    def _render_health_section(self, cow) -> None:
+        card = ctk.CTkFrame(self.scroll, corner_radius=10)
+        card.pack(fill="x", pady=(20, 0))
+
+        row = ctk.CTkFrame(card, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=14)
+        ctk.CTkLabel(row, text="Health", font=ctk.CTkFont(size=18, weight="bold")).pack(side="left")
+
+        diseases = self._disease_controller.list_for_cow(self._current_user, cow.id)
+        unresolved = [d for d in diseases if d.status != DiseaseStatus.RECOVERED]
+        summary_text = f"{len(unresolved)} active issue(s)" if unresolved else "No active issues"
+        summary_color = ("#b91c1c", "#f87171") if unresolved else ("gray30", "gray70")
+        ctk.CTkLabel(row, text=summary_text, text_color=summary_color).pack(side="left", padx=(10, 0))
+
+        ctk.CTkButton(
+            row,
+            text="Open Health",
+            width=110,
+            command=lambda: self._on_open_health(cow.id, cow.tag_number),
+        ).pack(side="right")
 
     def _render_facts_grid(self, cow) -> None:
         card = ctk.CTkFrame(self.scroll, corner_radius=10)

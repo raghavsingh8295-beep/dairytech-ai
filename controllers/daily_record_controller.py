@@ -10,9 +10,9 @@ from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
 from controllers.base_controller import BaseController
-from controllers.farm_access import ensure_can_access_farm, get_farm_or_raise
+from controllers.farm_access import ensure_can_access_farm, get_cow_or_raise, get_farm_or_raise
 from database.session import get_db_session
-from models.cow import Cow, PregnancyStatus
+from models.cow import PregnancyStatus
 from models.daily_record import DailyRecord
 from services.cow_service import CowService
 from services.daily_record_service import DailyRecordService
@@ -64,7 +64,7 @@ class DailyRecordController(BaseController):
     ) -> List[DailyRecordEntry]:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            cow = self._require_cow(CowService(session), cow_id)
+            cow = get_cow_or_raise(CowService(session), cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm)
             records = DailyRecordService(session).list_for_cow(
@@ -77,7 +77,7 @@ class DailyRecordController(BaseController):
     ) -> Optional[DailyRecordEntry]:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            cow = self._require_cow(CowService(session), cow_id)
+            cow = get_cow_or_raise(CowService(session), cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm)
             record = DailyRecordService(session).get_for_cow_and_date(cow_id, record_date)
@@ -122,7 +122,7 @@ class DailyRecordController(BaseController):
             farm_service = FarmService(session)
             cow_service = CowService(session)
             daily_service = DailyRecordService(session)
-            cow = self._require_cow(cow_service, cow_id)
+            cow = get_cow_or_raise(cow_service, cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(
                 farm_service, actor, farm, required_permission=Permission.RECORD_DAILY_DATA
@@ -169,7 +169,7 @@ class DailyRecordController(BaseController):
             record = daily_service.get_by_id(record_id)
             if record is None:
                 raise DailyRecordError("Record not found.")
-            cow = self._require_cow(CowService(session), record.cow_id)
+            cow = get_cow_or_raise(CowService(session), record.cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(
                 farm_service, actor, farm, required_permission=Permission.RECORD_DAILY_DATA
@@ -231,13 +231,6 @@ class DailyRecordController(BaseController):
         bcs = fields.get("body_condition_score")
         if bcs is not None and not (1.0 <= bcs <= 5.0):
             raise DailyRecordError("Body condition score must be between 1 and 5.")
-
-    @staticmethod
-    def _require_cow(cow_service: CowService, cow_id: int) -> Cow:
-        cow = cow_service.get_by_id(cow_id)
-        if cow is None:
-            raise DailyRecordError("Cow not found.")
-        return cow
 
     # ---- Mapping ------------------------------------------------------------
 

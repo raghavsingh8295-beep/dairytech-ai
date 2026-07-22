@@ -1,14 +1,16 @@
 """Shared farm-level access control and lookup, used by every controller
-whose records belong to a farm (Farm itself, Cow, and later Health,
-Breeding, Inventory, Finance, Daily Recording).
+whose records belong to a farm (Farm, Cow, Daily Recording, Milk Quality,
+Health, and later Breeding, Inventory, Finance).
 """
 from __future__ import annotations
 
 from typing import Optional
 
 from controllers.auth_controller import AuthenticatedUser
+from models.cow import Cow
 from models.farm import Farm
 from models.user import UserRole
+from services.cow_service import CowService
 from services.farm_service import FarmService
 from utils.exceptions import AppError
 from utils.permissions import Permission, has_permission
@@ -23,6 +25,13 @@ def get_farm_or_raise(farm_service: FarmService, farm_id: int) -> Farm:
     if farm is None:
         raise FarmAccessError("Farm not found.")
     return farm
+
+
+def get_cow_or_raise(cow_service: CowService, cow_id: int) -> Cow:
+    cow = cow_service.get_by_id(cow_id)
+    if cow is None:
+        raise FarmAccessError("Cow not found.")
+    return cow
 
 
 def ensure_can_access_farm(

@@ -147,6 +147,47 @@ again at submit as a safety net) and reloads its full state before
 allowing a save, so a targeted edit can never silently blank out
 previously recorded metrics.
 
+## Health (Module 6)
+
+Four entities, not one: `Disease`, `Vaccination`, `Treatment`,
+`DoctorVisit`. None of them are date-uniqueness-constrained per cow — a
+cow can have several vaccinations, treatments, or diagnoses over its
+life — so unlike Daily Recording / Milk Quality there's no upsert-by-date
+key here, just plain CRUD rows and no collision-detection dance needed.
+
+`Treatment` and `DoctorVisit` optionally reference the `Disease` they
+relate to (`disease_id`), so a disease's full story — diagnosis, vet
+visits, treatments, recovery — can be viewed together. "Recovery History"
+isn't its own table; it's simply `Disease` rows with `status=RECOVERED`
+and a `recovery_date`. `Vaccination` similarly needs no separate
+"schedule" table: a future dose is just a row with `date_given` still
+null, and "giving" it is editing that same row rather than a distinct
+action.
+
+This module finally implements the `Cow.health_status` sync promised back
+in Module 3: `DiseaseController._sync_cow_health_status` derives the
+cow's overall status from its currently unresolved diseases (any active
+severe disease → Critical, any active disease → Sick, any recovering →
+Under Treatment, otherwise → Healthy) every time a disease is created,
+edited, or removed. It deliberately never overwrites `QUARANTINED` — that
+status is a manual biosecurity decision, orthogonal to disease severity,
+and would otherwise get silently clobbered by the next unrelated disease
+edit.
+
+"Automatic Reminder" is an on-demand due/overdue query
+(`VaccinationController.list_due_for_cow`,
+`DoctorVisitController.list_upcoming_follow_ups_for_cow`), surfaced as a
+banner on the Health screen — not an OS push notification, since a
+desktop MVC app has no background service to deliver one. These same
+per-cow query methods are what a future Dashboard module will call across
+every cow to build its "Upcoming Vaccinations" KPI card, rather than
+needing a separate aggregation mechanism.
+
+Reused `_require_cow`, now used a seventh time across Cow/DailyRecord/
+MilkQuality/the four Health controllers, was finally worth centralizing:
+`get_cow_or_raise` moved into `controllers/farm_access.py` alongside
+`get_farm_or_raise`, and all seven call sites were switched over.
+
 ## AI Service Layer
 
 `ai/ai_service.py` defines `AIServiceInterface`, an ABC covering every AI

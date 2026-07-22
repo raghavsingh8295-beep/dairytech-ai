@@ -10,9 +10,8 @@ from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
 from controllers.base_controller import BaseController
-from controllers.farm_access import ensure_can_access_farm, get_farm_or_raise
+from controllers.farm_access import ensure_can_access_farm, get_cow_or_raise, get_farm_or_raise
 from database.session import get_db_session
-from models.cow import Cow
 from models.milk_quality import MilkQualityTest, MilkSession, QualityGrade
 from services.cow_service import CowService
 from services.farm_service import FarmService
@@ -54,7 +53,7 @@ class MilkQualityController(BaseController):
     ) -> List[MilkQualityEntry]:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            cow = self._require_cow(CowService(session), cow_id)
+            cow = get_cow_or_raise(CowService(session), cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm)
             tests = MilkQualityService(session).list_for_cow(
@@ -67,7 +66,7 @@ class MilkQualityController(BaseController):
     ) -> Optional[MilkQualityEntry]:
         with get_db_session() as session:
             farm_service = FarmService(session)
-            cow = self._require_cow(CowService(session), cow_id)
+            cow = get_cow_or_raise(CowService(session), cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(farm_service, actor, farm)
             test = MilkQualityService(session).get_for_cow_date_session(cow_id, test_date, session_type)
@@ -99,7 +98,7 @@ class MilkQualityController(BaseController):
             farm_service = FarmService(session)
             cow_service = CowService(session)
             quality_service = MilkQualityService(session)
-            cow = self._require_cow(cow_service, cow_id)
+            cow = get_cow_or_raise(cow_service, cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(
                 farm_service, actor, farm, required_permission=Permission.RECORD_DAILY_DATA
@@ -149,7 +148,7 @@ class MilkQualityController(BaseController):
             test = quality_service.get_by_id(test_id)
             if test is None:
                 raise MilkQualityError("Test not found.")
-            cow = self._require_cow(CowService(session), test.cow_id)
+            cow = get_cow_or_raise(CowService(session), test.cow_id)
             farm = get_farm_or_raise(farm_service, cow.farm_id)
             ensure_can_access_farm(
                 farm_service, actor, farm, required_permission=Permission.RECORD_DAILY_DATA
@@ -200,13 +199,6 @@ class MilkQualityController(BaseController):
         bacteria = fields.get("bacteria_count")
         if bacteria is not None and bacteria < 0:
             raise MilkQualityError("Bacteria count cannot be negative.")
-
-    @staticmethod
-    def _require_cow(cow_service: CowService, cow_id: int) -> Cow:
-        cow = cow_service.get_by_id(cow_id)
-        if cow is None:
-            raise MilkQualityError("Cow not found.")
-        return cow
 
     # ---- Mapping ------------------------------------------------------------
 
