@@ -18,7 +18,7 @@ pydantic==2.13.4
 python-multipart==0.0.32
 
 # --- Cloud deployment (Postgres, since the free-tier host's disk is ephemeral) ---
-psycopg[binary]==3.2.3
+psycopg[binary]==3.2.10
 
 # --- Added in later modules (uncomment as each module is built) ---
 # alembic              # database migrations
