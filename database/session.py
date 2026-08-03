@@ -33,6 +33,13 @@ engine = create_engine(
     echo=settings.DATABASE_ECHO,
     connect_args=_connect_args,
     future=True,
+    # Serverless Postgres hosts (e.g. Neon) suspend their compute after a
+    # period of inactivity and drop any connection that was pooled before
+    # the suspend — pool_pre_ping validates a connection with a cheap
+    # round-trip before handing it to a request, transparently reconnecting
+    # instead of surfacing psycopg's AdminShutdown as a 500. A no-op for
+    # SQLite, which never drops connections underneath us this way.
+    pool_pre_ping=True,
 )
 
 if _is_sqlite:
