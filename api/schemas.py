@@ -26,6 +26,20 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SignUpIn(BaseModel):
+    """Public self-service registration — deliberately has no `role` field
+    (unlike `UserCreateIn`, used by the admin-only /users endpoint): a
+    self-signup always becomes a Farm Owner, never Admin/Employee, so the
+    role can't be chosen by the caller."""
+
+    username: str
+    email: str
+    full_name: str
+    password: str
+    security_question: str
+    security_answer: str
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

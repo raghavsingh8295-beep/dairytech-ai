@@ -70,6 +70,40 @@ class AuthController(BaseController):
             self.logger.info("Initial admin account created: %s", user.username)
             return self._to_authenticated_user(user)
 
+    def sign_up(
+        self,
+        *,
+        username: str,
+        email: str,
+        full_name: str,
+        password: str,
+        security_question: str,
+        security_answer: str,
+    ) -> AuthenticatedUser:
+        """Public self-service registration: anyone can create their own
+        Farm Owner account, no existing Admin required. Always Farm Owner
+        (never Admin/Employee) so each signup gets a farm-scoped tenant of
+        their own — `FarmController` already isolates farms/cows/records by
+        `owner_id`, so no data-model change is needed for this to give each
+        signup a private herd invisible to every other Farm Owner."""
+        with get_db_session() as session:
+            service = UserService(session)
+            self._validate_new_account_fields(
+                username, email, full_name, password, security_question, security_answer, service
+            )
+            user = service.create(
+                username=username.strip(),
+                email=email.strip().lower(),
+                full_name=full_name.strip(),
+                password_hash=hash_password(password),
+                role=UserRole.FARM_OWNER,
+                security_question=security_question.strip(),
+                security_answer_hash=hash_password(normalize_answer(security_answer)),
+                last_login_at=datetime.now(timezone.utc),
+            )
+            self.logger.info("Self-service signup: %s (farm_owner)", user.username)
+            return self._to_authenticated_user(user)
+
     def register_user(
         self,
         *,
