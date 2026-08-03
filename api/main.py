@@ -1,4 +1,4 @@
-"""FastAPI application entry point for the DairyTech AI mobile/API backend.
+"""FastAPI application entry point for the trimTAB mobile/API backend.
 
 Run with:
     uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
@@ -13,8 +13,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from api.routers import auth, farms
+from api.routers import auth, cows, daily_records, farms, health, insights, milk_quality, users
 from config.settings import settings
 from database.init_db import init_database
 from utils.exceptions import AppError
@@ -50,6 +51,18 @@ def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
 
 app.include_router(auth.router)
 app.include_router(farms.router)
+app.include_router(cows.router)
+app.include_router(daily_records.router)
+app.include_router(health.router)
+app.include_router(users.router)
+app.include_router(milk_quality.router)
+app.include_router(insights.router)
+
+settings.ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+# Serves farm/cow photos (assets/images/farms/*, assets/images/cows/*) so the
+# mobile app can load them by URL — the desktop app reads these off local
+# disk directly and has never needed an HTTP path before.
+app.mount("/media", StaticFiles(directory=str(settings.ASSETS_DIR)), name="media")
 
 
 @app.get("/health")

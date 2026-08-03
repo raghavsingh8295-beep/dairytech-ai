@@ -15,6 +15,10 @@ fastapi==0.139.2
 uvicorn[standard]==0.51.0
 pyjwt==2.13.0
 pydantic==2.13.4
+python-multipart==0.0.32
+
+# --- Cloud deployment (Postgres, since the free-tier host's disk is ephemeral) ---
+psycopg[binary]==3.2.3
 
 # --- Added in later modules (uncomment as each module is built) ---
 # alembic              # database migrations

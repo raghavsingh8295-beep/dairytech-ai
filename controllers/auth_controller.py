@@ -140,6 +140,30 @@ class AuthController(BaseController):
         with get_db_session() as session:
             return [self._to_authenticated_user(u) for u in UserService(session).get_all(include_inactive=True)]
 
+    def update_user(
+        self, *, actor_role: UserRole, user_id: int, full_name: str, email: str
+    ) -> AuthenticatedUser:
+        """Edits profile fields only — username, password, and role are
+        deliberately excluded here (identity/security-sensitive changes
+        that need their own dedicated flows, same as the desktop app)."""
+        if not has_permission(actor_role, Permission.MANAGE_USERS):
+            raise AuthenticationError("You do not have permission to manage user accounts.")
+        with get_db_session() as session:
+            service = UserService(session)
+            user = service.get_by_id(user_id)
+            if user is None:
+                raise AuthenticationError("User not found.")
+            if not validate_email(email):
+                raise AuthenticationError("Enter a valid email address.")
+            if not full_name.strip():
+                raise AuthenticationError("Full name is required.")
+            existing = service.get_by_email(email)
+            if existing is not None and existing.id != user_id:
+                raise AuthenticationError("That email is already registered.")
+            service.update(user_id, full_name=full_name.strip(), email=email.strip().lower())
+            self.logger.info("User updated: %s", user.username)
+            return self._to_authenticated_user(user)
+
     def set_user_active(self, *, actor_role: UserRole, user_id: int, is_active: bool) -> None:
         if not has_permission(actor_role, Permission.MANAGE_USERS):
             raise AuthenticationError("You do not have permission to manage user accounts.")

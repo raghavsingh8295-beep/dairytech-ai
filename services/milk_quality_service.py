@@ -23,6 +23,21 @@ class MilkQualityService(BaseService[MilkQualityTest]):
         )
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def get_any_for_cow_date_session(
+        self, cow_id: int, test_date: date, session: MilkSession
+    ) -> Optional[MilkQualityTest]:
+        """Like `get_for_cow_date_session` but matches regardless of
+        `is_active`. The (cow, date, session) triple is DB-unique, so a
+        soft-deleted row still occupies that slot — `save_test`'s upsert
+        must find it and revive it, or it hits the unique constraint
+        trying to INSERT a duplicate."""
+        stmt = select(MilkQualityTest).where(
+            MilkQualityTest.cow_id == cow_id,
+            MilkQualityTest.test_date == test_date,
+            MilkQualityTest.session == session,
+        )
+        return self.session.execute(stmt).scalar_one_or_none()
+
     def list_for_cow(
         self,
         cow_id: int,

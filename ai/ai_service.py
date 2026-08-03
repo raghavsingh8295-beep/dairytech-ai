@@ -29,7 +29,7 @@ class Recommendation:
 
 
 class AIServiceInterface(ABC):
-    """Contract for all AI-driven insights in DairyTech AI."""
+    """Contract for all AI-driven insights in trimTAB."""
 
     @abstractmethod
     def calculate_health_score(self, cow_id: int) -> float:

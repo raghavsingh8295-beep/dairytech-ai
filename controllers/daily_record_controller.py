@@ -5,7 +5,7 @@ observation back onto the Cow profile snapshot.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
@@ -50,6 +50,7 @@ class DailyRecordEntry:
     notes: Optional[str]
     recorded_by_name: str
     is_active: bool
+    updated_at: datetime
 
 
 class DailyRecordController(BaseController):
@@ -148,14 +149,17 @@ class DailyRecordController(BaseController):
             )
             self._validate_fields(fields)
 
-            existing = daily_service.get_for_cow_and_date(cow_id, record_date)
+            existing = daily_service.get_any_for_cow_and_date(cow_id, record_date)
             if existing is None:
                 record = daily_service.create(
                     cow_id=cow_id, record_date=record_date, recorded_by_id=actor.id, **fields
                 )
                 self.logger.info("Daily record created: cow_id=%s date=%s", cow_id, record_date)
             else:
-                record = daily_service.update(existing.id, **fields)
+                # `existing` may be a soft-deleted row occupying this
+                # (cow, date) slot — reviving it on save matches the
+                # "save = the current state for this slot" contract.
+                record = daily_service.update(existing.id, is_active=True, **fields)
                 self.logger.info("Daily record updated: cow_id=%s date=%s", cow_id, record_date)
 
             self._sync_cow_snapshot(cow_service, daily_service, cow_id, record_date, weight_kg, pregnancy_status)
@@ -238,7 +242,7 @@ class DailyRecordController(BaseController):
     def _to_entry(record: DailyRecord) -> DailyRecordEntry:
         morning = record.milk_morning_liters
         evening = record.milk_evening_liters
-        total = None if morning is None and evening is None else (morning or 0) + (evening or 0)
+        total = None if morning is None and evening is None else round((morning or 0) + (evening or 0), 2)
         return DailyRecordEntry(
             id=record.id,
             cow_id=record.cow_id,
@@ -262,4 +266,5 @@ class DailyRecordController(BaseController):
             notes=record.notes,
             recorded_by_name=record.recorded_by.full_name,
             is_active=record.is_active,
+            updated_at=record.updated_at,
         )

@@ -115,7 +115,7 @@ class MilkQualityController(BaseController):
             )
             self._validate_fields(fields)
 
-            existing = quality_service.get_for_cow_date_session(cow_id, test_date, session_type)
+            existing = quality_service.get_any_for_cow_date_session(cow_id, test_date, session_type)
             if existing is None:
                 test = quality_service.create(
                     cow_id=cow_id,
@@ -131,7 +131,10 @@ class MilkQualityController(BaseController):
                     session_type.value,
                 )
             else:
-                test = quality_service.update(existing.id, **fields)
+                # `existing` may be a soft-deleted row occupying this
+                # (cow, date, session) slot — reviving it on save matches
+                # the "save = the current state for this slot" contract.
+                test = quality_service.update(existing.id, is_active=True, **fields)
                 self.logger.info(
                     "Milk quality test updated: cow_id=%s date=%s session=%s",
                     cow_id,

@@ -1,4 +1,4 @@
-"""DairyTech AI entry point."""
+"""trimTAB entry point."""
 from __future__ import annotations
 
 from database.init_db import init_database
@@ -9,13 +9,13 @@ logger = get_logger("main")
 
 
 def main() -> None:
-    logger.info("Starting DairyTech AI...")
+    logger.info("Starting trimTAB...")
     init_database()
 
     app = DairyTechApp()
     app.mainloop()
 
-    logger.info("DairyTech AI closed.")
+    logger.info("trimTAB closed.")
 
 
 if __name__ == "__main__":

@@ -45,14 +45,20 @@ class FarmFormDialog(ctk.CTkToplevel):
 
         self.owner_menu: Optional[ctk.CTkOptionMenu] = None
         self._blocked_no_owners = False
-        if current_user.role == UserRole.ADMIN and farm is None:
+        if current_user.role == UserRole.ADMIN:
             self._owner_options = self._controller.list_farm_owner_options(current_user)
             if self._owner_options:
                 self.owner_menu = ctk.CTkOptionMenu(
                     body, values=[self._owner_label(o) for o in self._owner_options]
                 )
                 self.owner_menu.pack(pady=5, fill="x")
-            else:
+                if farm is not None:
+                    current_owner = next((o for o in self._owner_options if o.id == farm.owner_id), None)
+                    if current_owner is not None:
+                        self.owner_menu.set(self._owner_label(current_owner))
+            elif farm is None:
+                # Editing an existing farm doesn't need this: the farm already
+                # has an owner, we just can't offer a picker to change it.
                 self._blocked_no_owners = True
                 ctk.CTkLabel(
                     body,
@@ -144,10 +150,12 @@ class FarmFormDialog(ctk.CTkToplevel):
                     notes=notes,
                 )
             else:
+                owner_id = self._resolve_selected_owner_id()
                 self._controller.update_farm(
                     self._current_user,
                     self._farm.id,
                     name=self.name_entry.get(),
+                    owner_id=owner_id,
                     phone_number=self.phone_entry.get(),
                     address=self.address_entry.get(),
                     gps_latitude=latitude,

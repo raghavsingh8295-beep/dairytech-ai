@@ -47,7 +47,7 @@ def _load_or_create_jwt_secret() -> str:
 class Settings:
     """Immutable, process-wide application settings."""
 
-    APP_NAME: str = "DairyTech AI"
+    APP_NAME: str = "trimTAB"
     APP_VERSION: str = "0.1.0"
 
     BASE_DIR: Path = BASE_DIR

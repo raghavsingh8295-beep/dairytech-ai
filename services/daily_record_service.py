@@ -21,6 +21,17 @@ class DailyRecordService(BaseService[DailyRecord]):
         )
         return self.session.execute(stmt).scalar_one_or_none()
 
+    def get_any_for_cow_and_date(self, cow_id: int, record_date: date) -> Optional[DailyRecord]:
+        """Like `get_for_cow_and_date` but matches regardless of
+        `is_active`. (cow_id, record_date) is DB-unique, so a soft-deleted
+        row still occupies that slot — `save_record`'s upsert must find
+        and revive it, or it hits the unique constraint trying to INSERT
+        a duplicate."""
+        stmt = select(DailyRecord).where(
+            DailyRecord.cow_id == cow_id, DailyRecord.record_date == record_date
+        )
+        return self.session.execute(stmt).scalar_one_or_none()
+
     def list_for_cow(
         self,
         cow_id: int,

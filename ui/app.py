@@ -108,7 +108,7 @@ class DairyTechApp(ctk.CTk):
 
         ctk.CTkLabel(
             sidebar,
-            text="🐄 DairyTech AI",
+            text="🐄 trimTAB",
             font=ctk.CTkFont(size=18, weight="bold"),
         ).pack(pady=(24, 8), padx=16, anchor="w")
 

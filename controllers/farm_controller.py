@@ -124,6 +124,7 @@ class FarmController(BaseController):
         farm_id: int,
         *,
         name: str,
+        owner_id: Optional[int] = None,
         phone_number: Optional[str] = None,
         address: Optional[str] = None,
         gps_latitude: Optional[float] = None,
@@ -147,8 +148,7 @@ class FarmController(BaseController):
                 delete_image(farm.photo_path)
                 new_photo_path = None
 
-            farm_service.update(
-                farm_id,
+            update_fields = dict(
                 name=name.strip(),
                 phone_number=(phone_number.strip() or None) if phone_number else None,
                 address=(address.strip() or None) if address else None,
@@ -157,6 +157,17 @@ class FarmController(BaseController):
                 notes=(notes.strip() or None) if notes else None,
                 photo_path=new_photo_path,
             )
+            # owner_id absent/None means "leave unchanged" -- the column is
+            # NOT NULL, so None can never be a legitimate value to set here.
+            if owner_id is not None:
+                if actor.role != UserRole.ADMIN:
+                    raise FarmError("Only an Admin can change a farm's owner.")
+                owner = UserService(session).get_by_id(owner_id)
+                if owner is None or owner.role != UserRole.FARM_OWNER or not owner.is_active:
+                    raise FarmError("Select a valid, active Farm Owner account.")
+                update_fields["owner_id"] = owner_id
+
+            farm_service.update(farm_id, **update_fields)
             self.logger.info("Farm updated: %s", farm.name)
             return self._to_detail(farm_service, cow_service, farm)
 
