@@ -20,13 +20,19 @@ python-multipart==0.0.32
 # --- Cloud deployment (Postgres, since the free-tier host's disk is ephemeral) ---
 psycopg[binary]==3.2.10
 
-# --- AI Dairy Assistant (Phase 1): local embeddings + pgvector retrieval +
-# Claude generation. See requirements-ingest.txt for the separate,
-# local-machine-only PDF extraction dependency (PyMuPDF, AGPL-licensed —
-# deliberately never installed on the deployed server). ---
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.13.0
-sentence-transformers==5.6.1
+# --- AI Dairy Assistant (Phase 1): local embeddings (ONNX Runtime, not the
+# full PyTorch/sentence-transformers stack — that measured ~477MB resident
+# just to load the model and OOM-killed the API on Render's free 512MB
+# tier the first time it was actually used; onnxruntime measures ~280MB
+# for the same model, verified to preserve embedding quality within 0.997
+# cosine similarity of the fp32 original — see assistant/embedding.py and
+# scripts/export_embedding_model.py) + pgvector retrieval + Claude
+# generation. See requirements-ingest.txt for the separate, local-machine-
+# only PDF extraction dependency (PyMuPDF, AGPL-licensed — deliberately
+# never installed on the deployed server). ---
+onnxruntime==1.28.0
+tokenizers==0.22.2
+numpy==2.5.1
 pgvector==0.5.0
 anthropic==0.120.2
 
