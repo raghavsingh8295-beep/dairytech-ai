@@ -26,7 +26,8 @@ _RETRIEVAL_LIMIT = 4
 
 _NO_EVIDENCE_MESSAGE = (
     "I could not find enough information in the uploaded books to answer this reliably.\n"
-    "アップロードされた書籍内に、この質問へ確実に回答できる十分な情報が見つかりませんでした。"
+    "アップロードされた書籍内に、この質問へ確実に回答できる十分な情報が見つかりませんでした。\n"
+    "अपलोड की गई किताबों में इस सवाल का पक्का जवाब देने लायक जानकारी नहीं मिली।"
 )
 
 
