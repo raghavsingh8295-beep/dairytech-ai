@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.routers import auth, cows, daily_records, farms, health, insights, milk_quality, users
+from api.routers import assistant, auth, cows, daily_records, farms, health, insights, milk_quality, users
 from config.settings import settings
 from database.init_db import init_database
 from utils.exceptions import AppError
@@ -57,6 +57,7 @@ app.include_router(health.router)
 app.include_router(users.router)
 app.include_router(milk_quality.router)
 app.include_router(insights.router)
+app.include_router(assistant.router)
 
 settings.ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 # Serves farm/cow photos (assets/images/farms/*, assets/images/cows/*) so the

@@ -21,6 +21,10 @@ assets/images/*
 .env
 .jwt_secret
 
+# Book source PDFs are likely copyrighted — never committed. The
+# ingested/embedded text lives in the database, not in this repo.
+data/books/*.pdf
+
 build/
 dist/
 *.spec

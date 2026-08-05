@@ -430,3 +430,22 @@ class FarmDashboardSummaryOut(BaseModel):
     today_total_liters: Optional[float]
     yesterday_total_liters: Optional[float]
     recent_records: List[RecentRecordEntryOut]
+
+
+class AssistantAskIn(BaseModel):
+    question: str
+
+
+class CitationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    book_title: str
+    page_number: int
+
+
+class AssistantAskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    answer: str
+    citations: List[CitationOut]
+    grounded: bool

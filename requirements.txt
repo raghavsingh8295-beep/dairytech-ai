@@ -20,6 +20,16 @@ python-multipart==0.0.32
 # --- Cloud deployment (Postgres, since the free-tier host's disk is ephemeral) ---
 psycopg[binary]==3.2.10
 
+# --- AI Dairy Assistant (Phase 1): local embeddings + pgvector retrieval +
+# Claude generation. See requirements-ingest.txt for the separate,
+# local-machine-only PDF extraction dependency (PyMuPDF, AGPL-licensed —
+# deliberately never installed on the deployed server). ---
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.13.0
+sentence-transformers==5.6.1
+pgvector==0.5.0
+anthropic==0.120.2
+
 # --- Added in later modules (uncomment as each module is built) ---
 # alembic              # database migrations
 # matplotlib           # data visualization module

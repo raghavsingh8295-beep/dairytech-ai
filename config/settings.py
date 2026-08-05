@@ -82,6 +82,19 @@ class Settings:
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRY_DAYS: int = field(default_factory=lambda: int(os.getenv("JWT_EXPIRY_DAYS", "30")))
 
+    # AI Dairy Assistant (Phase 1) — retrieval stays local (embeddings run
+    # on this server, nothing sent out for search); ANTHROPIC_API_KEY is
+    # only used for the final answer-generation call, sent the question
+    # plus a handful of retrieved book passages, never raw farm data or
+    # whole books. Left as None (not required at import time) so the app
+    # still boots and every other feature keeps working before this is
+    # configured — only `/assistant/ask` itself fails until it's set.
+    ANTHROPIC_API_KEY: str | None = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY") or None)
+    EMBEDDING_MODEL_NAME: str = field(
+        default_factory=lambda: os.getenv("EMBEDDING_MODEL_NAME", "cl-nagoya/ruri-v3-30m")
+    )
+    BOOKS_DIR: Path = field(default_factory=lambda: Path(os.getenv("BOOKS_DIR", str(BASE_DIR / "data" / "books"))))
+
     def ensure_directories(self) -> None:
         """Create runtime directories that are not tracked in git."""
         for directory in (self.LOGS_DIR, self.EXPORTS_DIR, self.BASE_DIR / "database"):

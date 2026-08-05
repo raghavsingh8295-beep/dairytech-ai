@@ -1,0 +1,10 @@
+# Local-machine-only dependencies for `scripts/ingest_book.py`.
+#
+# PyMuPDF is AGPL/commercial-licensed — acceptable for a one-off script you
+# run on your own machine against your own PDFs, but never installed on the
+# deployed API server (see render.yaml / requirements.txt), which stays on
+# a permissively-licensed dependency set.
+#
+# Install with: pip install -r requirements-ingest.txt
+pymupdf==1.28.0
+-r requirements.txt
