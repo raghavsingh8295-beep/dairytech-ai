@@ -14,8 +14,10 @@ this column (and any existing embedded rows) must be migrated together.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base
@@ -39,6 +41,12 @@ class BookChunk(Base, TimestampMixin):
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list] = mapped_column(Vector(EMBEDDING_DIMENSIONS), nullable=False)
+
+    # Null for normal (non-OCR) extraction. Set (0-1) when this chunk's
+    # page was scanned and OCR'd — surfaced as a "verify against the
+    # physical book" caveat when a low-confidence chunk is actually cited
+    # in an answer (see AssistantController._low_confidence_note).
+    ocr_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     book: Mapped[Book] = relationship("Book", backref="chunks")
 

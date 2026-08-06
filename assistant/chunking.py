@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from assistant.extraction import PageText
 
@@ -31,6 +31,10 @@ class RawChunk:
     chunk_index: int
     page_number: int
     content: str
+    # Carried straight from the source page's PageText.ocr_confidence — a
+    # chunk never spans a page boundary, so this is always exactly one
+    # page's confidence, not an aggregate.
+    ocr_confidence: Optional[float] = None
 
 
 def chunk_pages(
@@ -53,14 +57,28 @@ def chunk_pages(
         buffer = ""
         for sentence in sentences:
             if buffer and len(buffer) + len(sentence) > target_chars:
-                chunks.append(RawChunk(chunk_index=chunk_index, page_number=page.page_number, content=buffer))
+                chunks.append(
+                    RawChunk(
+                        chunk_index=chunk_index,
+                        page_number=page.page_number,
+                        content=buffer,
+                        ocr_confidence=page.ocr_confidence,
+                    )
+                )
                 chunk_index += 1
                 buffer = buffer[-overlap_chars:] + sentence
             else:
                 buffer += sentence
 
         if buffer:
-            chunks.append(RawChunk(chunk_index=chunk_index, page_number=page.page_number, content=buffer))
+            chunks.append(
+                RawChunk(
+                    chunk_index=chunk_index,
+                    page_number=page.page_number,
+                    content=buffer,
+                    ocr_confidence=page.ocr_confidence,
+                )
+            )
             chunk_index += 1
 
     return chunks

@@ -8,7 +8,7 @@ that talks to SQLAlchemy" rule.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
 from sqlalchemy import delete, func, select
 
@@ -39,6 +39,7 @@ class ChunkDraft:
     page_number: int
     content: str
     embedding: List[float]
+    ocr_confidence: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,7 @@ class RetrievedChunk:
     book_title: str
     page_number: int
     content: str
+    ocr_confidence: Optional[float] = None
 
 
 class BookChunkService(BaseService[BookChunk]):
@@ -70,6 +72,7 @@ class BookChunkService(BaseService[BookChunk]):
                     page_number=draft.page_number,
                     content=draft.content,
                     embedding=draft.embedding,
+                    ocr_confidence=draft.ocr_confidence,
                 )
             )
         self.session.flush()
@@ -133,7 +136,11 @@ class BookChunkService(BaseService[BookChunk]):
             chunk, title = by_id[chunk_id]
             results.append(
                 RetrievedChunk(
-                    chunk_id=chunk.id, book_title=title, page_number=chunk.page_number, content=chunk.content
+                    chunk_id=chunk.id,
+                    book_title=title,
+                    page_number=chunk.page_number,
+                    content=chunk.content,
+                    ocr_confidence=chunk.ocr_confidence,
                 )
             )
         return results
