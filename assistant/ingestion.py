@@ -1,6 +1,11 @@
-"""Orchestrates ingesting one book end-to-end: hash -> extract -> chunk ->
-embed -> persist. Called only by `scripts/ingest_book.py` — never imported
-by `api/`, since extraction depends on the local-only PyMuPDF dependency.
+"""Orchestrates ingesting one source end-to-end: extract -> chunk -> embed
+-> persist. Called only by `scripts/ingest_book.py` — never imported by
+`api/`, since PDF extraction depends on the local-only PyMuPDF dependency.
+
+Two entry points share one core pipeline: `ingest_book` (PDF, with OCR
+fallback) and `ingest_text` (plain text — e.g. a video transcript the user
+already has the rights to — treated as a single "page" since there's no
+natural page concept for it).
 
 Deliberately does NOT hold one database session open across the whole
 function: extraction+OCR of a scanned book can take the better part of an
@@ -15,11 +20,11 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from assistant.chunking import chunk_pages
 from assistant.embedding import embed_passages
-from assistant.extraction import extract_pages
+from assistant.extraction import PageText, extract_pages
 from database.session import get_db_session
 from models.book import Book
 from services.book_chunk_service import BookChunkService, ChunkDraft
@@ -27,10 +32,6 @@ from services.book_service import BookService
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-def _hash_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _get_existing_book(title: str) -> Optional[Book]:
@@ -49,7 +50,7 @@ def _chunk_count_matches(book_id: int, expected: int) -> bool:
         return BookChunkService(session).count_for_book(book_id) == expected
 
 
-def _persist(title: str, pdf_path: Path, content_hash: str, drafts: list[ChunkDraft], existing_id: Optional[int]) -> None:
+def _persist(title: str, source_filename: str, content_hash: str, drafts: List[ChunkDraft], existing_id: Optional[int]) -> None:
     """The only part of ingestion that touches the database for real work —
     kept to just this fast insert/replace so the session it opens is never
     held open across the slow extraction/OCR/embedding steps above it."""
@@ -59,32 +60,27 @@ def _persist(title: str, pdf_path: Path, content_hash: str, drafts: list[ChunkDr
 
         if existing_id is None:
             book = book_service.create(
-                title=title, source_filename=pdf_path.name, content_hash=content_hash, chunk_count=len(drafts)
+                title=title, source_filename=source_filename, content_hash=content_hash, chunk_count=len(drafts)
             )
         else:
             book = book_service.update(
-                existing_id, source_filename=pdf_path.name, content_hash=content_hash, chunk_count=len(drafts)
+                existing_id, source_filename=source_filename, content_hash=content_hash, chunk_count=len(drafts)
             )
 
         chunk_service.replace_chunks(book.id, drafts)
 
 
-def ingest_book(pdf_path: Path, title: str) -> None:
-    """Idempotent: re-running against an unchanged file (same content hash,
-    same chunk count already persisted) is a no-op. A changed file gets its
-    entire chunk set atomically replaced — see `BookChunkService.replace_chunks`."""
-    content_hash = _hash_file(pdf_path)
-
+def _ingest_pages(title: str, source_filename: str, content_hash: str, pages: List[PageText]) -> None:
+    """Shared core: chunk -> embed -> persist, used by both entry points
+    below once they've each produced a `List[PageText]` their own way."""
     existing = _get_existing_book(title)
     if existing is not None and existing.content_hash == content_hash and _chunk_count_matches(existing.id, existing.chunk_count):
-        logger.info("Book %r unchanged (hash match, %d chunks already indexed) — skipping.", title, existing.chunk_count)
+        logger.info("%r unchanged (hash match, %d chunks already indexed) — skipping.", title, existing.chunk_count)
         return
 
-    logger.info("Extracting text from %s...", pdf_path)
-    pages = extract_pages(pdf_path)
     raw_chunks = chunk_pages(pages)
     if not raw_chunks:
-        raise ValueError(f"No extractable text found in {pdf_path} — is it a scanned/image-only PDF?")
+        raise ValueError(f"No usable text found for {title!r}.")
 
     logger.info("Embedding %d chunks...", len(raw_chunks))
     embeddings = embed_passages([chunk.content for chunk in raw_chunks])
@@ -105,13 +101,27 @@ def ingest_book(pdf_path: Path, title: str) -> None:
         avg = sum(ocr_confidences) / len(ocr_confidences)
         low = sum(1 for c in ocr_confidences if c < 0.5)
         logger.info(
-            "OCR used for %d/%d chunks (avg confidence %.2f, %d below 0.5 — verify these against the physical book).",
-            len(ocr_confidences),
-            len(drafts),
-            avg,
-            low,
+            "OCR used for %d/%d chunks (avg confidence %.2f, %d below 0.5).", len(ocr_confidences), len(drafts), avg, low
         )
 
     logger.info("Writing %d chunks to the database...", len(drafts))
-    _persist(title, pdf_path, content_hash, drafts, existing.id if existing else None)
+    _persist(title, source_filename, content_hash, drafts, existing.id if existing else None)
     logger.info("Ingested %r: %d pages, %d chunks.", title, len(pages), len(drafts))
+
+
+def ingest_book(pdf_path: Path, title: str) -> None:
+    """Idempotent: re-running against an unchanged file (same content hash,
+    same chunk count already persisted) is a no-op. A changed file gets its
+    entire chunk set atomically replaced — see `BookChunkService.replace_chunks`."""
+    content_hash = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+    logger.info("Extracting text from %s...", pdf_path)
+    pages = extract_pages(pdf_path)
+    _ingest_pages(title, pdf_path.name, content_hash, pages)
+
+
+def ingest_text(text: str, title: str, source_filename: str) -> None:
+    """For plain-text sources with no natural page concept (e.g. a video
+    transcript) — treated as a single page. Idempotent the same way as
+    `ingest_book`, keyed off a hash of the text itself."""
+    content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    _ingest_pages(title, source_filename, content_hash, [PageText(page_number=1, text=text)])

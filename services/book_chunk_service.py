@@ -88,59 +88,76 @@ class BookChunkService(BaseService[BookChunk]):
         word-tokenized keyword search like Postgres's default `tsvector`
         config would be far less useful here) are fused with Reciprocal
         Rank Fusion rather than combined by normalizing two differently-
-        shaped, differently-scaled distance metrics into one number."""
-        vector_stmt = (
-            select(BookChunk.id)
+        shaped, differently-scaled distance metrics into one number.
+
+        Both legs (plus the row data needed to build `RetrievedChunk`) are
+        fetched in a single round-trip via two CTEs full-outer-joined on
+        chunk id, rather than three separate queries — each round-trip to
+        Neon carries its own network/connect latency, which measurably
+        dominated this method's total time (~5.6s for 3 round-trips vs.
+        low-hundreds-of-ms of actual query work)."""
+        vector_cte = (
+            select(
+                BookChunk.id.label("chunk_id"),
+                BookChunk.page_number.label("page_number"),
+                BookChunk.content.label("content"),
+                BookChunk.ocr_confidence.label("ocr_confidence"),
+                Book.title.label("book_title"),
+                func.row_number().over(order_by=BookChunk.embedding.cosine_distance(query_embedding)).label("rank"),
+            )
             .join(Book, Book.id == BookChunk.book_id)
             .where(Book.is_active.is_(True))
             .order_by(BookChunk.embedding.cosine_distance(query_embedding))
             .limit(_CANDIDATES_PER_LEG)
+            .cte("vector_candidates")
         )
-        vector_ids = list(self.session.execute(vector_stmt).scalars().all())
 
-        keyword_stmt = (
-            select(BookChunk.id)
+        keyword_cte = (
+            select(
+                BookChunk.id.label("chunk_id"),
+                BookChunk.page_number.label("page_number"),
+                BookChunk.content.label("content"),
+                BookChunk.ocr_confidence.label("ocr_confidence"),
+                Book.title.label("book_title"),
+                func.row_number().over(order_by=func.similarity(BookChunk.content, query_text).desc()).label("rank"),
+            )
             .join(Book, Book.id == BookChunk.book_id)
             .where(Book.is_active.is_(True))
             .order_by(func.similarity(BookChunk.content, query_text).desc())
             .limit(_CANDIDATES_PER_LEG)
+            .cte("keyword_candidates")
         )
-        keyword_ids = list(self.session.execute(keyword_stmt).scalars().all())
+
+        combined_stmt = (
+            select(
+                func.coalesce(vector_cte.c.chunk_id, keyword_cte.c.chunk_id).label("chunk_id"),
+                func.coalesce(vector_cte.c.book_title, keyword_cte.c.book_title).label("book_title"),
+                func.coalesce(vector_cte.c.page_number, keyword_cte.c.page_number).label("page_number"),
+                func.coalesce(vector_cte.c.content, keyword_cte.c.content).label("content"),
+                func.coalesce(vector_cte.c.ocr_confidence, keyword_cte.c.ocr_confidence).label("ocr_confidence"),
+                vector_cte.c.rank.label("vector_rank"),
+                keyword_cte.c.rank.label("keyword_rank"),
+            )
+            .select_from(vector_cte)
+            .join(keyword_cte, vector_cte.c.chunk_id == keyword_cte.c.chunk_id, full=True)
+        )
 
         fused_scores: dict[int, float] = {}
-        for rank, chunk_id in enumerate(vector_ids):
-            fused_scores[chunk_id] = fused_scores.get(chunk_id, 0.0) + 1.0 / (_RRF_K + rank)
-        for rank, chunk_id in enumerate(keyword_ids):
-            fused_scores[chunk_id] = fused_scores.get(chunk_id, 0.0) + 1.0 / (_RRF_K + rank)
-
-        if not fused_scores:
-            return []
+        chunk_data: dict[int, RetrievedChunk] = {}
+        for row in self.session.execute(combined_stmt):
+            score = 0.0
+            if row.vector_rank is not None:
+                score += 1.0 / (_RRF_K + (row.vector_rank - 1))
+            if row.keyword_rank is not None:
+                score += 1.0 / (_RRF_K + (row.keyword_rank - 1))
+            fused_scores[row.chunk_id] = score
+            chunk_data[row.chunk_id] = RetrievedChunk(
+                chunk_id=row.chunk_id,
+                book_title=row.book_title,
+                page_number=row.page_number,
+                content=row.content,
+                ocr_confidence=row.ocr_confidence,
+            )
 
         top_ids = sorted(fused_scores, key=lambda cid: fused_scores[cid], reverse=True)[:limit]
-
-        rows = (
-            self.session.execute(
-                select(BookChunk, Book.title)
-                .join(Book, Book.id == BookChunk.book_id)
-                .where(BookChunk.id.in_(top_ids))
-            )
-        ).all()
-        by_id = {chunk.id: (chunk, title) for chunk, title in rows}
-
-        # Re-apply the fused ranking — the `IN (...)` query above doesn't
-        # preserve `top_ids`' order.
-        results = []
-        for chunk_id in top_ids:
-            if chunk_id not in by_id:
-                continue
-            chunk, title = by_id[chunk_id]
-            results.append(
-                RetrievedChunk(
-                    chunk_id=chunk.id,
-                    book_title=title,
-                    page_number=chunk.page_number,
-                    content=chunk.content,
-                    ocr_confidence=chunk.ocr_confidence,
-                )
-            )
-        return results
+        return [chunk_data[cid] for cid in top_ids]
