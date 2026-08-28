@@ -52,6 +52,7 @@ class CowDetail(CowSummary):
     color: Optional[str]
     horn_type: Optional[HornType]
     expected_delivery_date: Optional[date]
+    calving_date: Optional[date]
     purchase_date: Optional[date]
     purchase_price: Optional[float]
     location: Optional[str]
@@ -91,6 +92,7 @@ class CowController(BaseController):
         horn_type: Optional[HornType] = None,
         pregnancy_status: PregnancyStatus = PregnancyStatus.OPEN,
         expected_delivery_date: Optional[date] = None,
+        calving_date: Optional[date] = None,
         health_status: HealthStatus = HealthStatus.HEALTHY,
         purchase_date: Optional[date] = None,
         purchase_price: Optional[float] = None,
@@ -130,6 +132,7 @@ class CowController(BaseController):
                 horn_type=horn_type,
                 pregnancy_status=pregnancy_status,
                 expected_delivery_date=expected_delivery_date,
+                calving_date=calving_date,
                 health_status=health_status,
                 purchase_date=purchase_date,
                 purchase_price=purchase_price,
@@ -158,6 +161,7 @@ class CowController(BaseController):
         horn_type: Optional[HornType] = None,
         pregnancy_status: PregnancyStatus = PregnancyStatus.OPEN,
         expected_delivery_date: Optional[date] = None,
+        calving_date: Optional[date] = None,
         health_status: HealthStatus = HealthStatus.HEALTHY,
         purchase_date: Optional[date] = None,
         purchase_price: Optional[float] = None,
@@ -200,6 +204,7 @@ class CowController(BaseController):
                 horn_type=horn_type,
                 pregnancy_status=pregnancy_status,
                 expected_delivery_date=expected_delivery_date,
+                calving_date=calving_date,
                 health_status=health_status,
                 purchase_date=purchase_date,
                 purchase_price=purchase_price,
@@ -278,6 +283,7 @@ class CowController(BaseController):
             color=cow.color,
             horn_type=cow.horn_type,
             expected_delivery_date=cow.expected_delivery_date,
+            calving_date=cow.calving_date,
             purchase_date=cow.purchase_date,
             purchase_price=cow.purchase_price,
             location=cow.location,

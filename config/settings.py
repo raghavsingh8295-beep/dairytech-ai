@@ -95,6 +95,17 @@ class Settings:
     )
     BOOKS_DIR: Path = field(default_factory=lambda: Path(os.getenv("BOOKS_DIR", str(BASE_DIR / "data" / "books"))))
 
+    # Photo storage (farm/cow photos) — Cloudinary, not local disk. Render's
+    # free-tier filesystem is ephemeral (wiped on every deploy/restart),
+    # which was silently orphaning every `photo_path` already saved in the
+    # database — confirmed directly by uploaded photos 404ing after the
+    # next deploy. Left optional (None) the same way ANTHROPIC_API_KEY is,
+    # so the rest of the app keeps working before this is configured; only
+    # photo upload fails until it's set.
+    CLOUDINARY_CLOUD_NAME: str | None = field(default_factory=lambda: os.getenv("CLOUDINARY_CLOUD_NAME") or None)
+    CLOUDINARY_API_KEY: str | None = field(default_factory=lambda: os.getenv("CLOUDINARY_API_KEY") or None)
+    CLOUDINARY_API_SECRET: str | None = field(default_factory=lambda: os.getenv("CLOUDINARY_API_SECRET") or None)
+
     def ensure_directories(self) -> None:
         """Create runtime directories that are not tracked in git."""
         for directory in (self.LOGS_DIR, self.EXPORTS_DIR, self.BASE_DIR / "database"):

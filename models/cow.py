@@ -95,6 +95,7 @@ class Cow(Base, TimestampMixin, SoftDeleteMixin):
         SAEnum(PregnancyStatus, name="pregnancy_status"), nullable=False, default=PregnancyStatus.OPEN
     )
     expected_delivery_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    calving_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     health_status: Mapped[HealthStatus] = mapped_column(
         SAEnum(HealthStatus, name="health_status"), nullable=False, default=HealthStatus.HEALTHY

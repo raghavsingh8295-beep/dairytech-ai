@@ -97,6 +97,7 @@ def upload_cow_photo(
             horn_type=current.horn_type,
             pregnancy_status=current.pregnancy_status,
             expected_delivery_date=current.expected_delivery_date,
+            calving_date=current.calving_date,
             health_status=current.health_status,
             purchase_date=current.purchase_date,
             purchase_price=current.purchase_price,

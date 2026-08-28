@@ -146,6 +146,7 @@ class CowDetailOut(CowSummaryOut):
     color: Optional[str]
     horn_type: Optional[HornType]
     expected_delivery_date: Optional[date]
+    calving_date: Optional[date]
     purchase_date: Optional[date]
     purchase_price: Optional[float]
     location: Optional[str]
@@ -262,6 +263,7 @@ class CowCreateIn(BaseModel):
     horn_type: Optional[HornType] = None
     pregnancy_status: PregnancyStatus = PregnancyStatus.OPEN
     expected_delivery_date: Optional[date] = None
+    calving_date: Optional[date] = None
     health_status: HealthStatus = HealthStatus.HEALTHY
     purchase_date: Optional[date] = None
     purchase_price: Optional[float] = None

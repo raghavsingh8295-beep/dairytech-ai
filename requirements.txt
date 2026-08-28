@@ -20,6 +20,11 @@ python-multipart==0.0.32
 # --- Cloud deployment (Postgres, since the free-tier host's disk is ephemeral) ---
 psycopg[binary]==3.2.10
 
+# --- Photo storage (farm/cow photos) — same ephemeral-disk reason as
+# Postgres above, just not caught until real photo uploads started
+# vanishing after each deploy. See utils/file_storage.py. ---
+cloudinary==1.46.2
+
 # --- AI Dairy Assistant (Phase 1): local embeddings (ONNX Runtime, not the
 # full PyTorch/sentence-transformers stack — that measured ~477MB resident
 # just to load the model and OOM-killed the API on Render's free 512MB
