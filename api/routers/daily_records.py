@@ -55,3 +55,12 @@ def delete_record(record_id: int, current_user: AuthenticatedUser = Depends(get_
         DailyRecordController().delete_record(current_user, record_id)
     except AppError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/records/{record_id}/confirm", response_model=DailyRecordOut)
+def confirm_record(record_id: int, current_user: AuthenticatedUser = Depends(get_current_user)) -> DailyRecordOut:
+    try:
+        record = DailyRecordController().confirm_record(current_user, record_id)
+    except AppError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return DailyRecordOut.model_validate(record)

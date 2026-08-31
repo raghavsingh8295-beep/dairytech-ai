@@ -178,6 +178,7 @@ class DailyRecordOut(BaseModel):
     notes: Optional[str]
     recorded_by_name: str
     is_active: bool
+    is_confirmed: bool
     updated_at: datetime
 
 

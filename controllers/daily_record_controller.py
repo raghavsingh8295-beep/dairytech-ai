@@ -50,6 +50,7 @@ class DailyRecordEntry:
     notes: Optional[str]
     recorded_by_name: str
     is_active: bool
+    is_confirmed: bool
     updated_at: datetime
 
 
@@ -156,6 +157,10 @@ class DailyRecordController(BaseController):
                 )
                 self.logger.info("Daily record created: cow_id=%s date=%s", cow_id, record_date)
             else:
+                if existing.is_confirmed:
+                    raise DailyRecordError(
+                        "This record has been confirmed and can no longer be edited."
+                    )
                 # `existing` may be a soft-deleted row occupying this
                 # (cow, date) slot — reviving it on save matches the
                 # "save = the current state for this slot" contract.
@@ -178,8 +183,31 @@ class DailyRecordController(BaseController):
             ensure_can_access_farm(
                 farm_service, actor, farm, required_permission=Permission.RECORD_DAILY_DATA
             )
+            if record.is_confirmed:
+                raise DailyRecordError("This record has been confirmed and can no longer be deleted.")
             daily_service.delete(record_id)
             self.logger.info("Daily record deactivated: id=%s", record_id)
+
+    def confirm_record(self, actor: AuthenticatedUser, record_id: int) -> DailyRecordEntry:
+        """Locks the record against further edits/deletes. Idempotent —
+        confirming an already-confirmed record just returns it as-is,
+        since the end state either way is "confirmed", not an error the
+        farmer needs to know about."""
+        with get_db_session() as session:
+            farm_service = FarmService(session)
+            daily_service = DailyRecordService(session)
+            record = daily_service.get_by_id(record_id)
+            if record is None:
+                raise DailyRecordError("Record not found.")
+            cow = get_cow_or_raise(CowService(session), record.cow_id)
+            farm = get_farm_or_raise(farm_service, cow.farm_id)
+            ensure_can_access_farm(
+                farm_service, actor, farm, required_permission=Permission.RECORD_DAILY_DATA
+            )
+            if not record.is_confirmed:
+                record = daily_service.update(record_id, is_confirmed=True)
+                self.logger.info("Daily record confirmed: id=%s", record_id)
+            return self._to_entry(record)
 
     # ---- Sync -----------------------------------------------------------
 
@@ -266,5 +294,6 @@ class DailyRecordController(BaseController):
             notes=record.notes,
             recorded_by_name=record.recorded_by.full_name,
             is_active=record.is_active,
+            is_confirmed=record.is_confirmed,
             updated_at=record.updated_at,
         )

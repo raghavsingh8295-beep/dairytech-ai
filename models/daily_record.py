@@ -52,6 +52,13 @@ class DailyRecord(Base, TimestampMixin, SoftDeleteMixin):
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Once true, the (cow, date) slot is locked: `save_record`'s upsert and
+    # `delete_record` both refuse to touch it. One-way by design — this
+    # exists so a farmer can mark a day's entry final (after the evening
+    # milking, say) so it can't be silently changed later, not so it can be
+    # toggled back and forth.
+    is_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     recorded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     cow: Mapped[Cow] = relationship("Cow", backref="daily_records")
