@@ -5,7 +5,7 @@ observation back onto the Cow profile snapshot.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
@@ -20,6 +20,10 @@ from services.farm_service import FarmService
 from utils.exceptions import AppError
 from utils.permissions import Permission
 from utils.validators import validate_non_negative
+
+
+class DailyRecordConflict(AppError):
+    """The server record changed since the mobile copy was fetched."""
 
 
 class DailyRecordError(AppError):
@@ -107,8 +111,14 @@ class DailyRecordController(BaseController):
         heat_detected: bool = False,
         body_condition_score: Optional[float] = None,
         notes: Optional[str] = None,
+        provided_fields: Optional[set[str]] = None,
+        check_version: bool = False,
+        expected_updated_at: Optional[datetime] = None,
     ) -> DailyRecordEntry:
-        """Create today's (or a backdated) entry, or update it in place if one
+        """API callers supply provided_fields to preserve omitted fields.
+        Explicit None still clears an optional field. Version checks reject stale edits.
+
+        Create today's (or a backdated) entry, or update it in place if one
         already exists for this cow on this date.
 
         The update path is a full overwrite, not a partial patch: every
@@ -148,9 +158,23 @@ class DailyRecordController(BaseController):
                 body_condition_score=body_condition_score,
                 notes=(notes.strip() or None) if notes else None,
             )
-            self._validate_fields(fields)
-
+            # Serialize writes per cow on PostgreSQL, including new date slots.
+            from sqlalchemy import select
+            from models.cow import Cow
+            session.execute(select(Cow.id).where(Cow.id == cow_id).with_for_update())
             existing = daily_service.get_any_for_cow_and_date(cow_id, record_date)
+            if check_version:
+                current_version = existing.updated_at if existing is not None else None
+                def utc(value):
+                    if value is None:
+                        return None
+                    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+                if utc(current_version) != utc(expected_updated_at):
+                    raise DailyRecordConflict("This record changed on another device. Review both versions before saving.")
+            if provided_fields is not None and existing is not None:
+                fields = {key: value if key in provided_fields else getattr(existing, key)
+                          for key, value in fields.items()}
+            self._validate_fields(fields)
             if existing is None:
                 record = daily_service.create(
                     cow_id=cow_id, record_date=record_date, recorded_by_id=actor.id, **fields
@@ -167,7 +191,7 @@ class DailyRecordController(BaseController):
                 record = daily_service.update(existing.id, is_active=True, **fields)
                 self.logger.info("Daily record updated: cow_id=%s date=%s", cow_id, record_date)
 
-            self._sync_cow_snapshot(cow_service, daily_service, cow_id, record_date, weight_kg, pregnancy_status)
+            self._sync_cow_snapshot(cow_service, daily_service, cow_id, record_date, fields["weight_kg"], fields["pregnancy_status"])
 
             return self._to_entry(record)
 
@@ -250,7 +274,7 @@ class DailyRecordController(BaseController):
         ):
             value = fields.get(key)
             if value is not None and not validate_non_negative(value):
-                raise DailyRecordError(f"{key.replace('_', ' ').capitalize()} cannot be negative.")
+                raise DailyRecordError(f"{key.replace('_', ' ').capitalize()} must be a finite, non-negative number.")
 
         heart_rate = fields.get("heart_rate_bpm")
         if heart_rate is not None and heart_rate < 0:

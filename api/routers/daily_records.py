@@ -1,6 +1,5 @@
-"""Daily record endpoints. Mirrors DailyRecordController exactly — the
-save endpoint is a full-overwrite upsert by (cow_id, record_date), not a
-partial patch, same as the desktop dialog."""
+"""Daily record upserts preserve omitted fields; explicit null clears values.
+Clients may include expected_updated_at for optimistic conflict detection."""
 from __future__ import annotations
 
 from datetime import date
@@ -11,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from api.schemas import DailyRecordCreateIn, DailyRecordOut
 from api.security import get_current_user
 from controllers.auth_controller import AuthenticatedUser
-from controllers.daily_record_controller import DailyRecordController
+from controllers.daily_record_controller import DailyRecordController, DailyRecordConflict
 from utils.exceptions import AppError
 
 router = APIRouter(tags=["daily-records"])
@@ -42,8 +41,13 @@ def save_record_for_cow(
 ) -> DailyRecordOut:
     try:
         record = DailyRecordController().save_record(
-            current_user, cow_id=cow_id, **payload.model_dump()
+            current_user, cow_id=cow_id,
+            provided_fields=payload.model_fields_set - {"record_date", "expected_updated_at"},
+            check_version="expected_updated_at" in payload.model_fields_set,
+            **payload.model_dump()
         )
+    except DailyRecordConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except AppError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return DailyRecordOut.model_validate(record)

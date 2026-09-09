@@ -7,6 +7,7 @@ instead of each dialog reimplementing its own try/except ValueError.
 from __future__ import annotations
 
 from datetime import date, datetime
+import math
 from typing import Optional
 
 from utils.exceptions import AppError
@@ -17,9 +18,13 @@ def parse_optional_float(raw: str, field_label: str) -> Optional[float]:
     if not raw:
         return None
     try:
-        return float(raw)
+        value = float(raw)
     except ValueError as exc:
         raise AppError(f"{field_label} must be a number.") from exc
+
+    if not math.isfinite(value):
+        raise AppError(f"{field_label} must be a finite number.")
+    return value
 
 
 def parse_optional_int(raw: str, field_label: str) -> Optional[int]:

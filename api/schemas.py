@@ -183,7 +183,9 @@ class DailyRecordOut(BaseModel):
 
 
 class DailyRecordCreateIn(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     record_date: date
+    expected_updated_at: Optional[datetime] = None
     milk_morning_liters: Optional[float] = None
     milk_evening_liters: Optional[float] = None
     weight_kg: Optional[float] = None

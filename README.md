@@ -4,27 +4,53 @@ A desktop application for dairy farmers to manage farms, cows, daily records,
 health, breeding, inventory, and finances — with an AI layer for health
 scoring, yield forecasting, and plain-language recommendations.
 
-## Status
+## Current implementation
 
-All 10 core modules are complete:
+The repository includes a CustomTkinter desktop application and a FastAPI backend
+for the sibling `../trimTAB` React Native / Expo mobile client.
 
-0. Foundation — project skeleton, config, logging, database layer,
-   base service/controller patterns, AI service interface, app shell
-1. Authentication — roles (Admin/Farm Owner/Employee), permissions, login,
-   forgot password
-2. Farm Management — ownership-scoped farms, employee assignment, photos
-3. Cow Management — profiles, QR codes, farm-scoped permissions
-4. Daily Recording — per-cow daily logs, cow-profile snapshot sync
-5. Milk Quality — per-session tests, quality grade suggestion
-6. Health — diseases, vaccinations, treatments, doctor visits, reminders
-7. Breeding — heat cycles, AI, pregnancy tests, calf births (a calf is a Cow)
-8. Inventory — farm-scoped stock ledger, suppliers, purchases
-9. Finance — income, expenses, non-duplicating monthly summary/profit
-10. Dashboard — KPI cards aggregated across every farm a user can see
+Implemented modules include authentication, farm/cow management, daily records,
+milk quality, health, breeding, inventory, finance and dashboard summaries.
+The API additionally exposes herd analytics, cow insights and a book-grounded
+assistant. Assistant generation and photo uploads require their configured services.
+The `charts/` and `reports/` directories remain placeholders; desktop packaging
+and a full phone acceptance pass are still needed.
 
-Still ahead: charts/data visualization, the AI feature set (health scoring,
-yield forecasting, recommendations — the interface already exists in
-`ai/ai_service.py`), PDF/Excel reports, and PyInstaller packaging.
+## Mobile API
+
+```sh
+venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8000
+```
+
+For a physical phone on the same trusted network, bind to `0.0.0.0` and configure
+the mobile client's `EXPO_PUBLIC_API_BASE_URL` with a reachable backend URL.
+The Render blueprint is in `render.yaml`; configure `DATABASE_URL` and
+`JWT_SECRET_KEY` in the deployment environment. Do not commit credentials.
+
+Authenticated requests reload current account status and role from the database.
+A deactivated/deleted account is rejected on its next request.
+
+### Daily record API contract
+
+`POST /cows/{cow_id}/records` upserts by date. Omitted fields retain their existing
+values; explicit JSON null clears an optional field. This protects desktop-only
+fields when mobile submits its smaller form. Desktop controller callers retain
+the existing full-overwrite behavior unless they supply `provided_fields`.
+
+Clients may include `expected_updated_at` with the version returned by a prior
+read, or null to assert that no record exists yet. A mismatch returns HTTP 409.
+PostgreSQL writes acquire a cow-row lock before reading the record version.
+Confirmed records remain locked. Clients omitting the version field retain legacy
+behavior; deploy this backend before releasing the updated mobile client.
+
+### Regression checks
+
+```sh
+venv/bin/python -m unittest tests.test_review_fixes -v
+```
+
+Tests use an isolated in-memory database. They cover account changes, invalid
+numbers, omitted versus explicitly cleared fields, conflicts and confirmed records.
 
 ## Setup
 

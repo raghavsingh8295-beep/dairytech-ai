@@ -1,6 +1,7 @@
 """Small, dependency-free field validators shared across forms."""
 from __future__ import annotations
 
+import math
 import re
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -24,4 +25,4 @@ def validate_longitude(value: float) -> bool:
 
 
 def validate_non_negative(value: float) -> bool:
-    return value >= 0
+    return math.isfinite(value) and value >= 0
