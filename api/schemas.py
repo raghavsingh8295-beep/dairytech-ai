@@ -428,6 +428,16 @@ class RecentRecordEntryOut(BaseModel):
     total_liters: Optional[float]
 
 
+class CowPerformanceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    cow_id: int
+    tag_number: str
+    avg_daily_liters: float
+    fat_percent: float
+    score: float
+
+
 class FarmDashboardSummaryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -435,6 +445,8 @@ class FarmDashboardSummaryOut(BaseModel):
     today_total_liters: Optional[float]
     yesterday_total_liters: Optional[float]
     recent_records: List[RecentRecordEntryOut]
+    best_performer: Optional[CowPerformanceOut]
+    worst_performer: Optional[CowPerformanceOut]
 
 
 class AssistantAskIn(BaseModel):

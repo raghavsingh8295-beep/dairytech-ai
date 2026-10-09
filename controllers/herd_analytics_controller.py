@@ -11,9 +11,10 @@ from typing import List, Optional
 
 from controllers.auth_controller import AuthenticatedUser
 from controllers.base_controller import BaseController
-from controllers.cow_controller import CowController
+from controllers.cow_controller import CowController, CowSummary
 from controllers.daily_record_controller import DailyRecordController
 from controllers.farm_access import ensure_can_access_farm, get_farm_or_raise
+from controllers.milk_quality_controller import MilkQualityController
 from database.session import get_db_session
 from services.farm_service import FarmService
 
@@ -38,11 +39,30 @@ class RecentRecordEntry:
 
 
 @dataclass(frozen=True)
+class CowPerformance:
+    """A cow's standing on the dashboard's best/worst-performer cards: milk
+    quantity (last `RECENT_DAYS`) and fat % (most recent test) combined into
+    one score by min-max normalizing each across the farm's eligible cows
+    and averaging — necessary because the two measures live on completely
+    different scales (liters vs. a single-digit percentage), so comparing
+    or summing them raw would let whichever happens to have the bigger
+    numbers dominate."""
+
+    cow_id: int
+    tag_number: str
+    avg_daily_liters: float
+    fat_percent: float
+    score: float
+
+
+@dataclass(frozen=True)
 class FarmDashboardSummary:
     farm_id: int
     today_total_liters: Optional[float]
     yesterday_total_liters: Optional[float]
     recent_records: List[RecentRecordEntry]
+    best_performer: Optional[CowPerformance]
+    worst_performer: Optional[CowPerformance]
 
 
 @dataclass(frozen=True)
@@ -107,12 +127,67 @@ class HerdAnalyticsController(BaseController):
 
         recent.sort(key=lambda e: e.record_date, reverse=True)
 
+        best_performer, worst_performer = self._rank_performers(actor, cows)
+
         return FarmDashboardSummary(
             farm_id=farm_id,
             today_total_liters=round(today_total, 2) if today_has_data else None,
             yesterday_total_liters=round(yesterday_total, 2) if yesterday_has_data else None,
             recent_records=recent[:DASHBOARD_RECENT_LIMIT],
+            best_performer=best_performer,
+            worst_performer=worst_performer,
         )
+
+    @staticmethod
+    def _rank_performers(
+        actor: AuthenticatedUser, cows: List[CowSummary]
+    ) -> tuple[Optional[CowPerformance], Optional[CowPerformance]]:
+        """Combines each cow's recent milk quantity with its most recent fat
+        % test into one score (see `CowPerformance`), and returns the top
+        and bottom of that ranking. A cow needs both numbers to be ranked —
+        one without the other can't be compared fairly, so it's left out
+        rather than guessed at."""
+        candidates = []
+        for cow in cows:
+            if cow.gender.value != "female":
+                continue
+            records = DailyRecordController().list_for_cow(actor, cow.id, limit=RECENT_DAYS)
+            liters = [r.total_milk_liters for r in records if r.total_milk_liters is not None]
+            if not liters:
+                continue
+            quality = MilkQualityController().list_for_cow(actor, cow.id, limit=1)
+            if not quality or quality[0].fat_percent is None:
+                continue
+            candidates.append((cow, sum(liters) / len(liters), quality[0].fat_percent))
+
+        if not candidates:
+            return None, None
+
+        milk_values = [c[1] for c in candidates]
+        fat_values = [c[2] for c in candidates]
+        milk_lo, milk_hi = min(milk_values), max(milk_values)
+        fat_lo, fat_hi = min(fat_values), max(fat_values)
+
+        def normalize(value: float, lo: float, hi: float) -> float:
+            # All candidates tied on this measure — treat it as a wash
+            # rather than dividing by zero.
+            return 50.0 if hi == lo else (value - lo) / (hi - lo) * 100
+
+        ranked = sorted(
+            (
+                CowPerformance(
+                    cow_id=cow.id,
+                    tag_number=cow.tag_number,
+                    avg_daily_liters=round(liters, 2),
+                    fat_percent=fat,
+                    score=round((normalize(liters, milk_lo, milk_hi) + normalize(fat, fat_lo, fat_hi)) / 2, 1),
+                )
+                for cow, liters, fat in candidates
+            ),
+            key=lambda p: p.score,
+            reverse=True,
+        )
+        return ranked[0], ranked[-1]
 
     def get_farm_analytics(self, actor: AuthenticatedUser, farm_id: int) -> HerdAnalytics:
         with get_db_session() as session:
